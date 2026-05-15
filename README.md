@@ -22,13 +22,13 @@
 
 ## What it does
 
-For every incoming call, RegexPhone matches the caller's phone number against your rules and either lets it ring or rejects it. Each rule is a regular expression with an action (`BLOCK` or `ALLOW`) and, for block rules, controls over whether the missed-call notification and the call-log entry should appear.
+For every incoming call, RegexPhone matches the caller's phone number against your rules and either lets it ring, rejects it, or silences the ringtone. Each rule is a regular expression with an action (`BLOCK`, `SILENCE`, or `ALLOW`) and, for block rules, controls over whether the missed-call notification and the call-log entry should appear.
 
 ## Highlights
 
 - **Three actions per rule.** `BLOCK` rejects the call; `SILENCE` mutes the ringtone but lets the call still hit the call log and notification shade; `ALLOW` whitelists.
 - **Per-block flags.** Skip the missed-call notification and/or skip the call-log entry, independently, per rule.
-- **Allow beats block.** Evaluation is order-independent: if any allow rule matches, the call rings.
+- **Predictable precedence.** Allow beats block beats silence; otherwise the call is allowed. Order of rules within each action is irrelevant.
 - **Live tester.** The edit screen previews the verdict and which flags will apply for a sample number as you type.
 - **Import / Export.** Save the full rule set to a JSON file via Storage Access Framework, restore it on another device, or merge two sets together. No permissions needed.
 - **Simple storage.** Rules are JSON in `SharedPreferences`, read synchronously inside the screening service so there is no risk of an ANR.
@@ -79,7 +79,7 @@ On first launch tap **Set as default** in the status card and accept the system 
 | Gradle | 8.10.2 (via wrapper) |
 
 ```sh
-git clone https://github.com/<user>/regexphone.git
+git clone https://github.com/renaudallard/regexphone.git
 cd regexphone
 
 # One-time, only if gradle/wrapper/gradle-wrapper.jar is missing:
@@ -148,16 +148,17 @@ app/src/main/java/it/allard/regexphone/
 ├── MainActivity.kt
 ├── data/
 │   ├── Rule.kt                      data class + compiled-Pattern cache
+│   ├── RuleIO.kt                    pure encode / decode / merge helpers
 │   └── RuleRepository.kt            singleton, SharedPreferences-backed
 ├── service/
 │   └── FilterCallScreeningService.kt    pure decide() + the Android binding
 └── ui/
     ├── Theme.kt
-    ├── RulesListScreen.kt           list + role-status card + FAB
+    ├── RulesListScreen.kt           list + role-status card + FAB + menu
     └── EditRuleScreen.kt            form + live tester
 ```
 
-Tests live at `app/src/test/java/it/allard/regexphone/DecideTest.kt` and exercise `FilterCallScreeningService.decide()` end-to-end without any Android stubs.
+Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exercises `FilterCallScreeningService.decide()`, `RuleIOTest.kt` covers JSON round-trip and merge-with-fresh-ids. Both run without Android stubs.
 
 ## Limitations
 
