@@ -157,8 +157,9 @@ Tests live at `app/src/test/java/it/allard/regexphone/DecideTest.kt` and exercis
 ## Limitations
 
 - Only incoming calls; the `CallScreeningService` API has no outgoing-call hook.
+- **Callers already in your contact list bypass the regex entirely.** Android's telecom layer short-circuits `CallScreeningService` when the incoming number matches a saved contact: it returns *allow* without ever invoking the screening service, so no rule of yours can run. To block a number that is in contacts, delete (or temporarily delete) the contact entry first. This is by design at the system level — the official `CallScreeningService` documentation states the service is "called when a new incoming or outgoing call is added which is not in the user's contact list."
 - No contact-name matching (that would need `READ_CONTACTS`).
-- No rule import/export, no reordering, no silence-only action.
+- No rule reordering, no silence-only action.
 
 ## Branding
 
