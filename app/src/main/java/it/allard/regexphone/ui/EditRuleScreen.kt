@@ -223,6 +223,7 @@ fun EditRuleScreen(
                             !patternMatches -> "No match → ALLOW"
                             !enabled -> "Match, but rule is disabled → ALLOW"
                             action == RuleAction.ALLOW -> "Match → ALLOW"
+                            action == RuleAction.SILENCE -> "Match → SILENCE (ringtone muted, call still logged and notified)"
                             else -> {
                                 val flags = listOf(
                                     if (skipNotification) "silent notif" else "notif shown",

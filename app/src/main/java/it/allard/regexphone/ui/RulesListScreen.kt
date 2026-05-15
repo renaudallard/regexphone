@@ -330,6 +330,7 @@ private fun RuleRow(
 private fun ActionChip(action: RuleAction) {
     val (label, color) = when (action) {
         RuleAction.BLOCK -> "BLOCK" to MaterialTheme.colorScheme.errorContainer
+        RuleAction.SILENCE -> "SILENCE" to MaterialTheme.colorScheme.surfaceVariant
         RuleAction.ALLOW -> "ALLOW" to MaterialTheme.colorScheme.tertiaryContainer
     }
     AssistChip(

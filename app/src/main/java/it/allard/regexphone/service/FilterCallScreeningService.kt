@@ -50,11 +50,15 @@ class FilterCallScreeningService : CallScreeningService() {
         )
 
         val response = CallResponse.Builder().apply {
-            if (decision is Decision.Block) {
-                setDisallowCall(true)
-                setRejectCall(true)
-                setSkipCallLog(decision.rule.skipCallLog)
-                setSkipNotification(decision.rule.skipNotification)
+            when (decision) {
+                Decision.Allow -> Unit
+                is Decision.Block -> {
+                    setDisallowCall(true)
+                    setRejectCall(true)
+                    setSkipCallLog(decision.rule.skipCallLog)
+                    setSkipNotification(decision.rule.skipNotification)
+                }
+                is Decision.Silence -> setSilenceCall(true)
             }
         }.build()
 
@@ -64,6 +68,7 @@ class FilterCallScreeningService : CallScreeningService() {
     sealed interface Decision {
         data object Allow : Decision
         data class Block(val rule: Rule) : Decision
+        data class Silence(val rule: Rule) : Decision
     }
 
     companion object {
@@ -77,7 +82,11 @@ class FilterCallScreeningService : CallScreeningService() {
             val blockRule = active.firstOrNull {
                 it.action == RuleAction.BLOCK && it.matches(number)
             }
-            return if (blockRule != null) Decision.Block(blockRule) else Decision.Allow
+            if (blockRule != null) return Decision.Block(blockRule)
+            val silenceRule = active.firstOrNull {
+                it.action == RuleAction.SILENCE && it.matches(number)
+            }
+            return if (silenceRule != null) Decision.Silence(silenceRule) else Decision.Allow
         }
     }
 }

@@ -32,7 +32,7 @@ import kotlinx.serialization.Transient
 import java.util.regex.Pattern
 
 @Serializable
-enum class RuleAction { BLOCK, ALLOW }
+enum class RuleAction { BLOCK, SILENCE, ALLOW }
 
 @Serializable
 data class Rule(

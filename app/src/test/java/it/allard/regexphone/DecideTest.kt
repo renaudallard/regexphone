@@ -142,4 +142,32 @@ class DecideTest {
         val d = FilterCallScreeningService.decide("+15551234567", listOf(a, b)) as Decision.Block
         assertEquals(1L, d.rule.id)
     }
+
+    @Test
+    fun silenceRuleSilencesMatchingNumber() {
+        val r = rule(pattern = "^\\+1", action = RuleAction.SILENCE)
+        val d = FilterCallScreeningService.decide("+15551234567", listOf(r))
+        assertTrue(d is Decision.Silence)
+        assertEquals(r, (d as Decision.Silence).rule)
+    }
+
+    @Test
+    fun blockBeatsSilence() {
+        val rules = listOf(
+            rule(id = 1, pattern = "^\\+1", action = RuleAction.SILENCE),
+            rule(id = 2, pattern = "^\\+155", action = RuleAction.BLOCK),
+        )
+        val d = FilterCallScreeningService.decide("+15551234567", rules)
+        assertTrue(d is Decision.Block)
+        assertEquals(2L, (d as Decision.Block).rule.id)
+    }
+
+    @Test
+    fun allowBeatsSilence() {
+        val rules = listOf(
+            rule(id = 1, pattern = "^\\+1", action = RuleAction.SILENCE),
+            rule(id = 2, pattern = "^\\+155", action = RuleAction.ALLOW),
+        )
+        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+15551234567", rules))
+    }
 }

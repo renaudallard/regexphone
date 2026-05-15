@@ -26,7 +26,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 
 ## Highlights
 
-- **Two actions per rule.** `BLOCK` rejects the call; `ALLOW` whitelists.
+- **Three actions per rule.** `BLOCK` rejects the call; `SILENCE` mutes the ringtone but lets the call still hit the call log and notification shade; `ALLOW` whitelists.
 - **Per-block flags.** Skip the missed-call notification and/or skip the call-log entry, independently, per rule.
 - **Allow beats block.** Evaluation is order-independent: if any allow rule matches, the call rings.
 - **Live tester.** The edit screen previews the verdict and which flags will apply for a sample number as you type.
@@ -57,7 +57,8 @@ For each incoming call:
 
 1. If any enabled `ALLOW` rule matches, the call is allowed.
 2. Else if any enabled `BLOCK` rule matches, the call is rejected. The **skip notification** and **skip call log** flags of the *first* matching block rule apply.
-3. Otherwise the call is allowed.
+3. Else if any enabled `SILENCE` rule matches, the call rings silently (no audible ringtone), but the call log and notifications are unaffected.
+4. Otherwise the call is allowed.
 
 ## Install
 
@@ -161,7 +162,7 @@ Tests live at `app/src/test/java/it/allard/regexphone/DecideTest.kt` and exercis
 - Only incoming calls; the `CallScreeningService` API has no outgoing-call hook.
 - **Callers already in your contact list bypass the regex entirely.** Android's telecom layer short-circuits `CallScreeningService` when the incoming number matches a saved contact: it returns *allow* without ever invoking the screening service, so no rule of yours can run. To block a number that is in contacts, delete (or temporarily delete) the contact entry first. This is by design at the system level — the official `CallScreeningService` documentation states the service is "called when a new incoming or outgoing call is added which is not in the user's contact list."
 - No contact-name matching (that would need `READ_CONTACTS`).
-- No rule reordering, no silence-only action.
+- No rule reordering.
 
 ---
 
