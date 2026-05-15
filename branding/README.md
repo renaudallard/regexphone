@@ -25,6 +25,7 @@ Drop the contents of `res/` straight into your Android module's `src/main/res/` 
 | `res/mipmap-{m,h,x,xx,xxx}hdpi/ic_launcher.png`        | Legacy square fallback (48 / 72 / 96 / 144 / 192 px) |
 | `res/mipmap-{m,h,x,xx,xxx}hdpi/ic_launcher_round.png`  | Legacy circular fallback (same sizes) |
 | `playstore/ic_launcher-playstore.png`            | Google Play Store icon (512×512) |
+| `playstore/feature_graphic.png`                  | Play Store feature graphic — dark, 1024×500 |
 | `source/*.svg`                                   | Vector sources — foreground only, monochrome only, full composite |
 
 ## Color tokens

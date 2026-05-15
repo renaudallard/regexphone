@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="branding/playstore/ic_launcher-playstore.png" width="128" height="128" alt="RegexPhone icon" />
+  <img src="branding/playstore/feature_graphic.png" alt="RegexPhone" />
 </p>
 
 <h1 align="center">RegexPhone</h1>
