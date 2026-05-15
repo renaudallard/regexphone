@@ -32,6 +32,16 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 - **Simple storage.** Rules are JSON in `SharedPreferences`, read synchronously inside the screening service so there is no risk of an ANR.
 - **No background services, no contacts permission, no network access.**
 
+## Screenshots
+
+<p align="center">
+  <img src="branding/screenshots/rules-list.png" alt="Rules list" width="300" />
+  &nbsp;&nbsp;
+  <img src="branding/screenshots/edit-rule.png" alt="Edit rule" width="300" />
+</p>
+
+<p align="center"><em>Left: rules list with role-status banner. Right: edit screen with per-rule notification and call-log toggles.</em></p>
+
 ## How matching works
 
 | Aspect | Behaviour |
