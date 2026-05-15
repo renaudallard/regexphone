@@ -62,8 +62,10 @@ For each incoming call:
 
 ## Install
 
+Grab the latest signed APK from the [Releases page](https://github.com/renaudallard/regexphone/releases/latest), then:
+
 ```sh
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r regexphone-X.Y.Z.apk
 ```
 
 On first launch tap **Set as default** in the status card and accept the system dialog; the card turns green once the role is granted.
