@@ -76,6 +76,27 @@ gradle wrapper --gradle-version 8.10.2
 
 The APK lands at `app/build/outputs/apk/debug/app-debug.apk`.
 
+### Release builds
+
+`./gradlew assembleRelease` produces `app/build/outputs/apk/release/app-release.apk`. The build script picks up signing credentials from Gradle properties (typically `~/.gradle/gradle.properties`):
+
+```
+REGEXPHONE_KEYSTORE_PATH=/absolute/path/to/keystore.jks
+REGEXPHONE_KEYSTORE_PASSWORD=...
+REGEXPHONE_KEY_ALIAS=regexphone
+REGEXPHONE_KEY_PASSWORD=...
+```
+
+If `REGEXPHONE_KEYSTORE_PATH` is not set, `assembleRelease` still works and emits `app-release-unsigned.apk`. Generate a fresh keystore with:
+
+```sh
+keytool -genkeypair -keystore ~/.keystores/regexphone-release.jks \
+  -storetype PKCS12 -alias regexphone -keyalg RSA -keysize 2048 \
+  -validity 36500 -dname "CN=Your Name, O=RegexPhone"
+```
+
+Keystore files (`*.jks`, `*.keystore`) are gitignored. Back the keystore up off-device; losing it means you can never sign a follow-up release with the same identity.
+
 <details>
 <summary>Debian arm64 setup (the official <code>google-android-*-installer</code> packages are amd64-only)</summary>
 

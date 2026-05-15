@@ -17,9 +17,27 @@ android {
         versionName = "0.0.2"
     }
 
+    signingConfigs {
+        create("release") {
+            val path = providers.gradleProperty("REGEXPHONE_KEYSTORE_PATH").orNull
+            if (path != null) {
+                storeFile = file(path)
+                storePassword = providers.gradleProperty("REGEXPHONE_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.gradleProperty("REGEXPHONE_KEY_ALIAS").orNull
+                keyPassword = providers.gradleProperty("REGEXPHONE_KEY_PASSWORD").orNull
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
     }
 
