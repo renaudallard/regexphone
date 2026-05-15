@@ -239,7 +239,13 @@ private fun RoleCard() {
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (!roleHeld) {
+            if (roleHeld) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Android skips screening for callers saved in your contacts, so rules can't block a known contact. Delete the contact first if you need a regex to apply.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = {
                     val rm = ctx.getSystemService(RoleManager::class.java)
