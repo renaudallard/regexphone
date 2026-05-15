@@ -163,6 +163,14 @@ Tests live at `app/src/test/java/it/allard/regexphone/DecideTest.kt` and exercis
 - No contact-name matching (that would need `READ_CONTACTS`).
 - No rule reordering, no silence-only action.
 
+---
+
+## Support this project
+
+If you find RegexPhone useful, you can support development:
+
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?logo=paypal)](https://www.paypal.me/RenaudAllard)
+
 ## License
 
 BSD 2-Clause "Simplified" License. Copyright (c) 2026, Renaud Allard <renaud@allard.it>. See [LICENSE](LICENSE) for the full text. Every Kotlin source file carries the same header.
