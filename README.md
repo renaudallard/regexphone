@@ -28,6 +28,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 - **Per-block flags.** Skip the missed-call notification and/or skip the call-log entry, independently, per rule.
 - **Allow beats block.** Evaluation is order-independent: if any allow rule matches, the call rings.
 - **Live tester.** The edit screen previews the verdict and which flags will apply for a sample number as you type.
+- **Import / Export.** Save the full rule set to a JSON file via Storage Access Framework, restore it on another device, or merge two sets together. No permissions needed.
 - **Simple storage.** Rules are JSON in `SharedPreferences`, read synchronously inside the screening service so there is no risk of an ANR.
 - **No background services, no contacts permission, no network access.**
 

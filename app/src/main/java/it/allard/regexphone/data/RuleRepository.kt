@@ -57,6 +57,14 @@ object RuleRepository {
 
     fun nextId(): Long = (cache.maxOfOrNull { it.id } ?: 0L) + 1L
 
+    fun exportJson(): String = RuleIO.encode(cache)
+
+    fun importJson(text: String, replace: Boolean): Result<Int> =
+        RuleIO.decode(text).map { imported ->
+            persist(if (replace) imported else RuleIO.merge(cache, imported))
+            imported.size
+        }
+
     private fun persist(list: List<Rule>) {
         prefs.edit().putString(KEY_RULES, json.encodeToString(list)).commit()
         cache = list

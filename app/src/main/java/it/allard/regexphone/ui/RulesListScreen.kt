@@ -2,7 +2,10 @@ package it.allard.regexphone.ui
 
 import android.app.role.RoleManager
 import android.content.Context
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.CreateDocument
+import androidx.activity.result.contract.ActivityResultContracts.OpenDocument
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,10 +22,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -30,6 +37,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,7 +58,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
+import it.allard.regexphone.data.RuleIO
 import it.allard.regexphone.data.RuleRepository
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,10 +68,85 @@ fun RulesListScreen(
     onAddRule: () -> Unit,
     onEditRule: (Long) -> Unit,
 ) {
+    val ctx = LocalContext.current
     val rules by RuleRepository.rules.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    var menuOpen by remember { mutableStateOf(false) }
+    var pendingImport by remember { mutableStateOf<List<Rule>?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            ctx.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                it.write(RuleRepository.exportJson())
+            }
+        }.isSuccess
+        scope.launch {
+            snackbar.showSnackbar(
+                if (ok) "Exported ${rules.size} rule(s)" else "Export failed"
+            )
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = runCatching {
+            ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull()
+        if (text == null) {
+            scope.launch { snackbar.showSnackbar("Could not read file") }
+            return@rememberLauncherForActivityResult
+        }
+        RuleIO.decode(text)
+            .onSuccess { imported ->
+                if (rules.isEmpty()) {
+                    RuleRepository.importJson(text, replace = true)
+                    scope.launch { snackbar.showSnackbar("Imported ${imported.size} rule(s)") }
+                } else {
+                    pendingImport = imported
+                }
+            }
+            .onFailure {
+                scope.launch { snackbar.showSnackbar("Not a valid rules file") }
+            }
+    }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("RegexPhone") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("RegexPhone") },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Menu")
+                        }
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export rules") },
+                                enabled = rules.isNotEmpty(),
+                                onClick = {
+                                    menuOpen = false
+                                    exportLauncher.launch("regexphone-rules.json")
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Import rules") },
+                                onClick = {
+                                    menuOpen = false
+                                    importLauncher.launch(arrayOf("application/json", "*/*"))
+                                },
+                            )
+                        }
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddRule) {
                 Icon(Icons.Filled.Add, contentDescription = "Add rule")
@@ -89,6 +176,34 @@ fun RulesListScreen(
                 }
             }
         }
+    }
+
+    val pending = pendingImport
+    if (pending != null) {
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("Import rules") },
+            text = {
+                Text(
+                    "You have ${rules.size} existing rule(s) and the file contains " +
+                        "${pending.size}. Replace everything, or merge?"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    RuleRepository.importJson(RuleIO.encode(pending), replace = false)
+                    pendingImport = null
+                    scope.launch { snackbar.showSnackbar("Merged ${pending.size} rule(s)") }
+                }) { Text("Merge") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    RuleRepository.importJson(RuleIO.encode(pending), replace = true)
+                    pendingImport = null
+                    scope.launch { snackbar.showSnackbar("Replaced with ${pending.size} rule(s)") }
+                }) { Text("Replace") }
+            },
+        )
     }
 }
 
@@ -205,7 +320,7 @@ private fun EmptyState() {
             Text("No rules yet", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                "Tap + to add a regex rule.",
+                "Tap + to add a regex rule, or Import from the menu.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
