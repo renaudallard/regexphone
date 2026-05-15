@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
   <img src="https://img.shields.io/badge/build-Gradle%208.10-02303A?logo=gradle&logoColor=white" alt="Gradle 8.10" />
   <img src="https://img.shields.io/badge/license-BSD--2--Clause-blue" alt="BSD 2-Clause license" />
+  <img src="https://img.shields.io/github/downloads/renaudallard/regexphone/total?logo=github&logoColor=white&label=downloads" alt="GitHub downloads" />
 </p>
 
 ---
