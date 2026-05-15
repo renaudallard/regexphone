@@ -60,6 +60,19 @@ For each incoming call:
 3. Else if any enabled `SILENCE` rule matches, the call rings silently (no audible ringtone), but the call log and notifications are unaffected.
 4. Otherwise the call is allowed.
 
+## Example rules
+
+> All numbers below use the NANP fictional ranges (`555` exchange in any area code, or area code `555`) so they cannot belong to any real subscriber.
+
+| Pattern | Action | What it does |
+| --- | --- | --- |
+| `^\+12025550123$` | `BLOCK` | Block exactly one specific number. Substitute the real number from your call log. |
+| `^\+44` | `BLOCK` | Block every call from a country (here `+44` is the UK). Works for any country code. |
+| `^$` | `BLOCK` | Block withheld / hidden numbers — Android delivers an empty string in that case. |
+| `^\+1555\d{7}$` | `BLOCK` | Block a whole carrier or number range. `\d{7}` matches the seven digits after the fixed `+1555` prefix. |
+| `^\+32`<br/>`.*` | `ALLOW`<br/>`BLOCK` | Two rules together: whitelist a country (Belgium), reject everything else. `.*` matches any sequence including the empty string. |
+| `^\+1` | `SILENCE` | Mute the ringtone for calls from a country. The call still hits the call log and notification shade. |
+
 ## Install
 
 Grab the latest signed APK from the [Releases page](https://github.com/renaudallard/regexphone/releases/latest), then:
