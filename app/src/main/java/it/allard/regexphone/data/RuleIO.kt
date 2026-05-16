@@ -41,7 +41,10 @@ object RuleIO {
     fun encode(rules: List<Rule>): String = json.encodeToString(rules)
 
     fun decode(text: String): Result<List<Rule>> =
-        runCatching { json.decodeFromString<List<Rule>>(text) }
+        runCatching {
+            json.decodeFromString<List<Rule>>(text)
+                .filter { it.pattern.isNotBlank() && isValidRegex(it.pattern) }
+        }
 
     fun merge(current: List<Rule>, incoming: List<Rule>): List<Rule> {
         var nextId = (current.maxOfOrNull { it.id } ?: 0L) + 1L
