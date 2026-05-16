@@ -110,6 +110,7 @@ fun RulesListScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var pendingImportText by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImportCount by rememberSaveable { mutableStateOf(0) }
+    var pendingImportDropped by rememberSaveable { mutableStateOf(0) }
 
     val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -134,19 +135,27 @@ fun RulesListScreen(
             scope.launch { snackbar.showSnackbar("Could not read file") }
             return@rememberLauncherForActivityResult
         }
-        RuleIO.decode(text)
-            .onSuccess { imported ->
+        RuleIO.decodeWithSummary(text)
+            .onSuccess { outcome ->
                 when {
-                    imported.isEmpty() -> {
-                        scope.launch { snackbar.showSnackbar("Nothing to import") }
+                    outcome.rules.isEmpty() -> {
+                        scope.launch {
+                            snackbar.showSnackbar(
+                                if (outcome.dropped > 0) "Nothing to import (${outcome.dropped} invalid)"
+                                else "Nothing to import"
+                            )
+                        }
                     }
                     rules.isEmpty() -> {
                         RuleRepository.importJson(text, replace = true)
-                        scope.launch { snackbar.showSnackbar("Imported ${imported.size} rule(s)") }
+                        scope.launch {
+                            snackbar.showSnackbar(importSummary("Imported", outcome.rules.size, outcome.dropped))
+                        }
                     }
                     else -> {
                         pendingImportText = text
-                        pendingImportCount = imported.size
+                        pendingImportCount = outcome.rules.size
+                        pendingImportDropped = outcome.dropped
                     }
                 }
             }
@@ -236,17 +245,20 @@ fun RulesListScreen(
     val pendingText = pendingImportText
     if (pendingText != null) {
         val pendingCount = pendingImportCount
+        val pendingDropped = pendingImportDropped
         val clear = {
             pendingImportText = null
             pendingImportCount = 0
+            pendingImportDropped = 0
         }
+        val dropSuffix = if (pendingDropped > 0) " ($pendingDropped invalid will be skipped)" else ""
         AlertDialog(
             onDismissRequest = clear,
             title = { Text("Import rules") },
             text = {
                 Text(
                     "You have ${rules.size} existing rule(s) and the file contains " +
-                        "$pendingCount. Replace everything, or merge?"
+                        "$pendingCount$dropSuffix. Replace everything, or merge?"
                 )
             },
             confirmButton = {
@@ -254,12 +266,16 @@ fun RulesListScreen(
                     TextButton(onClick = {
                         RuleRepository.importJson(pendingText, replace = false)
                         clear()
-                        scope.launch { snackbar.showSnackbar("Merged $pendingCount rule(s)") }
+                        scope.launch {
+                            snackbar.showSnackbar(importSummary("Merged", pendingCount, pendingDropped))
+                        }
                     }) { Text("Merge") }
                     TextButton(onClick = {
                         RuleRepository.importJson(pendingText, replace = true)
                         clear()
-                        scope.launch { snackbar.showSnackbar("Replaced with $pendingCount rule(s)") }
+                        scope.launch {
+                            snackbar.showSnackbar(importSummary("Replaced with", pendingCount, pendingDropped))
+                        }
                     }) { Text("Replace") }
                 }
             },
@@ -412,4 +428,9 @@ private fun EmptyState() {
 private fun isCallScreeningRoleHeld(ctx: Context): Boolean {
     val rm = ctx.getSystemService(RoleManager::class.java) ?: return false
     return rm.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
+}
+
+private fun importSummary(verb: String, count: Int, dropped: Int): String {
+    val base = "$verb $count rule(s)"
+    return if (dropped > 0) "$base ($dropped skipped)" else base
 }

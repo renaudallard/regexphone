@@ -38,13 +38,19 @@ object RuleIO {
         encodeDefaults = true
     }
 
+    data class DecodeOutcome(val rules: List<Rule>, val dropped: Int)
+
     fun encode(rules: List<Rule>): String = json.encodeToString(rules)
 
-    fun decode(text: String): Result<List<Rule>> =
+    fun decodeWithSummary(text: String): Result<DecodeOutcome> =
         runCatching {
-            json.decodeFromString<List<Rule>>(text)
-                .filter { it.pattern.isNotBlank() && isValidRegex(it.pattern) }
+            val all = json.decodeFromString<List<Rule>>(text)
+            val valid = all.filter { it.pattern.isNotBlank() && isValidRegex(it.pattern) }
+            DecodeOutcome(valid, all.size - valid.size)
         }
+
+    fun decode(text: String): Result<List<Rule>> =
+        decodeWithSummary(text).map { it.rules }
 
     fun merge(
         current: List<Rule>,
