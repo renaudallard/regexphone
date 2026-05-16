@@ -92,9 +92,11 @@ object RuleRepository {
 
     @Synchronized
     fun nextId(): Long {
-        lastIssuedId += 1L
-        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).commit()
-        return lastIssuedId
+        val candidate = lastIssuedId + 1L
+        if (prefs.edit().putLong(KEY_LAST_ID, candidate).commit()) {
+            lastIssuedId = candidate
+        }
+        return candidate
     }
 
     fun exportJson(): String = RuleIO.encode(cache)
@@ -112,13 +114,18 @@ object RuleRepository {
 
     private fun persist(list: List<Rule>) {
         val newMax = list.maxOfOrNull { it.id } ?: 0L
+        val previousLastId = lastIssuedId
         if (newMax > lastIssuedId) lastIssuedId = newMax
-        prefs.edit()
+        val ok = prefs.edit()
             .putString(KEY_RULES, json.encodeToString(list))
             .putLong(KEY_LAST_ID, lastIssuedId)
             .commit()
-        cache = list
-        _rules.value = list
+        if (ok) {
+            cache = list
+            _rules.value = list
+        } else {
+            lastIssuedId = previousLastId
+        }
     }
 
     private fun load(): List<Rule> {
