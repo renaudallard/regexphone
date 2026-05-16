@@ -98,6 +98,8 @@ import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleIO
 import it.allard.regexphone.data.RuleRepository
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,9 +141,14 @@ fun RulesListScreen(
 
     val importLauncher = rememberLauncherForActivityResult(OpenDocument()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val text = runCatching {
-            ctx.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-        }.getOrNull()
+        val result = runCatching {
+            ctx.contentResolver.openInputStream(uri)?.use { readUtf8WithLimit(it, MAX_IMPORT_BYTES) }
+        }
+        if (result.exceptionOrNull() is FileTooLargeException) {
+            scope.launch { snackbar.showSnackbar("File too large to import") }
+            return@rememberLauncherForActivityResult
+        }
+        val text = result.getOrNull()
         if (text == null) {
             scope.launch { snackbar.showSnackbar("Could not read file") }
             return@rememberLauncherForActivityResult
@@ -462,8 +469,25 @@ private fun importSummary(verb: String, count: Int, dropped: Int): String {
 }
 
 private const val MAX_SAVED_IMPORT_CHARS = 200_000
+private const val MAX_IMPORT_BYTES = 1_000_000
 
 private val SafeImportTextSaver: Saver<String?, String> = Saver(
     save = { value -> value?.takeIf { it.length <= MAX_SAVED_IMPORT_CHARS } },
     restore = { it },
 )
+
+private class FileTooLargeException : RuntimeException()
+
+private fun readUtf8WithLimit(stream: InputStream, limit: Int): String {
+    val sink = ByteArrayOutputStream()
+    val buf = ByteArray(8192)
+    var total = 0
+    while (true) {
+        val n = stream.read(buf)
+        if (n == -1) break
+        total += n
+        if (total > limit) throw FileTooLargeException()
+        sink.write(buf, 0, n)
+    }
+    return sink.toString(Charsets.UTF_8.name())
+}
