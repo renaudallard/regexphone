@@ -9,6 +9,7 @@ captures/
 .cxx/
 app/release/
 app/debug/
+tmp/
 
 # Signing material must never be committed.
 *.jks
