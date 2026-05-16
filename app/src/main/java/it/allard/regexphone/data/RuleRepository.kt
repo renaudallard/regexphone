@@ -45,6 +45,8 @@ object RuleRepository {
 
     @Volatile
     private var initialized = false
+
+    @Volatile
     private lateinit var prefs: SharedPreferences
 
     @Volatile
