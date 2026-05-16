@@ -75,6 +75,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -112,8 +113,8 @@ fun RulesListScreen(
     var pendingImportText by rememberSaveable(stateSaver = SafeImportTextSaver) {
         mutableStateOf<String?>(null)
     }
-    var pendingImportCount by rememberSaveable { mutableStateOf(0) }
-    var pendingImportDropped by rememberSaveable { mutableStateOf(0) }
+    var pendingImportCount by rememberSaveable { mutableIntStateOf(0) }
+    var pendingImportDropped by rememberSaveable { mutableIntStateOf(0) }
 
     val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
