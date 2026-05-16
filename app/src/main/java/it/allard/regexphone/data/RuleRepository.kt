@@ -39,6 +39,7 @@ import kotlinx.serialization.json.Json
 object RuleRepository {
     private const val PREFS = "regexphone_prefs"
     private const val KEY_RULES = "rules"
+    private const val KEY_LAST_ID = "last_id"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -49,6 +50,9 @@ object RuleRepository {
     @Volatile
     private var cache: List<Rule> = emptyList()
 
+    @Volatile
+    private var lastIssuedId: Long = 0L
+
     private val _rules = MutableStateFlow<List<Rule>>(emptyList())
     val rules: StateFlow<List<Rule>> = _rules.asStateFlow()
 
@@ -58,6 +62,10 @@ object RuleRepository {
         prefs = context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         cache = load()
+        lastIssuedId = maxOf(
+            prefs.getLong(KEY_LAST_ID, 0L),
+            cache.maxOfOrNull { it.id } ?: 0L,
+        )
         _rules.value = cache
         initialized = true
     }
@@ -82,23 +90,33 @@ object RuleRepository {
 
     fun findById(id: Long): Rule? = cache.firstOrNull { it.id == id }
 
-    fun nextId(): Long = (cache.maxOfOrNull { it.id } ?: 0L) + 1L
+    @Synchronized
+    fun nextId(): Long {
+        lastIssuedId += 1L
+        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).commit()
+        return lastIssuedId
+    }
 
     fun exportJson(): String = RuleIO.encode(cache)
 
     fun importJson(text: String, replace: Boolean): Result<Int> =
         RuleIO.decode(text).map { imported ->
             val next = if (replace) {
-                RuleIO.reassignIds(imported)
+                RuleIO.reassignIds(imported, lastIssuedId + 1L)
             } else {
-                RuleIO.merge(cache, imported)
+                RuleIO.merge(cache, imported, lastIssuedId + 1L)
             }
             persist(next)
             imported.size
         }
 
     private fun persist(list: List<Rule>) {
-        prefs.edit().putString(KEY_RULES, json.encodeToString(list)).commit()
+        val newMax = list.maxOfOrNull { it.id } ?: 0L
+        if (newMax > lastIssuedId) lastIssuedId = newMax
+        prefs.edit()
+            .putString(KEY_RULES, json.encodeToString(list))
+            .putLong(KEY_LAST_ID, lastIssuedId)
+            .commit()
         cache = list
         _rules.value = list
     }

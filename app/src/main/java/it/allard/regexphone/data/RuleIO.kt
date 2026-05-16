@@ -46,8 +46,12 @@ object RuleIO {
                 .filter { it.pattern.isNotBlank() && isValidRegex(it.pattern) }
         }
 
-    fun merge(current: List<Rule>, incoming: List<Rule>): List<Rule> {
-        var nextId = (current.maxOfOrNull { it.id } ?: 0L) + 1L
+    fun merge(
+        current: List<Rule>,
+        incoming: List<Rule>,
+        startId: Long = (current.maxOfOrNull { it.id } ?: 0L) + 1L,
+    ): List<Rule> {
+        var nextId = startId
         return current + incoming.map { it.copy(id = nextId++) }
     }
 
