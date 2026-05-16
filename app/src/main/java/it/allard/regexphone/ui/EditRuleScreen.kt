@@ -87,7 +87,9 @@ fun EditRuleScreen(
     var testNumber by rememberSaveable { mutableStateOf("") }
 
     val trimmedPattern = pattern.trim()
-    val patternValid = trimmedPattern.isNotEmpty() && isValidRegex(trimmedPattern)
+    val patternValid = remember(trimmedPattern) {
+        trimmedPattern.isNotEmpty() && isValidRegex(trimmedPattern)
+    }
     var saving by remember { mutableStateOf(false) }
     val canSave = patternValid && !saving
 
@@ -225,7 +227,9 @@ fun EditRuleScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    val patternMatches = patternValid && draftMatches(trimmedPattern, testNumber)
+                    val patternMatches = patternValid && remember(trimmedPattern, testNumber) {
+                        draftMatches(trimmedPattern, testNumber)
+                    }
                     Text(
                         text = when {
                             !patternValid -> "Enter a valid pattern to test."
