@@ -111,6 +111,7 @@ object RuleRepository {
             imported.size
         }
 
+    @Synchronized
     private fun persist(list: List<Rule>): Boolean {
         val newMax = list.maxOfOrNull { it.id } ?: 0L
         val previousLastId = lastIssuedId
