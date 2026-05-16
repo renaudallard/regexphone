@@ -39,6 +39,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -96,6 +97,7 @@ fun EditRuleScreen(
         trimmedPattern.isNotEmpty() && isValidRegex(trimmedPattern)
     }
     var saving by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     val canSave = patternValid && !saving
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -111,13 +113,7 @@ fun EditRuleScreen(
                 },
                 actions = {
                     if (existing != null) {
-                        IconButton(onClick = {
-                            if (RuleRepository.delete(existing.id)) {
-                                onDone()
-                            } else {
-                                scope.launch { snackbar.showSnackbar("Could not delete rule") }
-                            }
-                        }) {
+                        IconButton(onClick = { confirmDelete = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete")
                         }
                     }
@@ -266,6 +262,27 @@ fun EditRuleScreen(
                 }
             }
         }
+    }
+
+    if (confirmDelete && existing != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete rule?") },
+            text = { Text("This will permanently remove the rule.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    if (RuleRepository.delete(existing.id)) {
+                        onDone()
+                    } else {
+                        scope.launch { snackbar.showSnackbar("Could not delete rule") }
+                    }
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 
