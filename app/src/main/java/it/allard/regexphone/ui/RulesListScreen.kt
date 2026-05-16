@@ -158,7 +158,7 @@ fun RulesListScreen(
                         }
                     }
                     rules.isEmpty() -> {
-                        val ok = RuleRepository.importJson(text, replace = true).isSuccess
+                        val ok = RuleRepository.importRules(outcome.rules, replace = true)
                         scope.launch {
                             snackbar.showSnackbar(
                                 if (ok) importSummary("Imported", outcome.rules.size, outcome.dropped)
@@ -276,8 +276,11 @@ fun RulesListScreen(
             pendingImportDropped = 0
         }
         val dropSuffix = if (pendingDropped > 0) " ($pendingDropped invalid will be skipped)" else ""
+        val pendingRules = remember(pendingText) {
+            RuleIO.decode(pendingText).getOrElse { emptyList() }
+        }
         val perform = { replace: Boolean, verb: String, failMsg: String ->
-            val ok = RuleRepository.importJson(pendingText, replace = replace).isSuccess
+            val ok = RuleRepository.importRules(pendingRules, replace = replace)
             if (ok) clear()
             scope.launch {
                 snackbar.showSnackbar(

@@ -98,17 +98,13 @@ object RuleRepository {
 
     fun exportJson(): String = RuleIO.encode(_rules.value)
 
-    fun importJson(text: String, replace: Boolean): Result<Int> =
-        RuleIO.decode(text).mapCatching { imported ->
-            val ok = persist { current, lastId ->
-                if (replace) {
-                    RuleIO.reassignIds(imported, lastId + 1L)
-                } else {
-                    RuleIO.merge(current, imported, lastId + 1L)
-                }
+    fun importRules(imported: List<Rule>, replace: Boolean): Boolean =
+        persist { current, lastId ->
+            if (replace) {
+                RuleIO.reassignIds(imported, lastId + 1L)
+            } else {
+                RuleIO.merge(current, imported, lastId + 1L)
             }
-            if (!ok) error("Could not save imported rules")
-            imported.size
         }
 
     @Synchronized
