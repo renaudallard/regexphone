@@ -38,13 +38,10 @@ object RuleRepository {
     private const val KEY_RULES = "rules"
     private const val KEY_LAST_ID = "last_id"
 
-    @Volatile
     private var initialized = false
 
-    @Volatile
     private lateinit var prefs: SharedPreferences
 
-    @Volatile
     private var lastIssuedId: Long = 0L
 
     private val _rules = MutableStateFlow<List<Rule>>(emptyList())
