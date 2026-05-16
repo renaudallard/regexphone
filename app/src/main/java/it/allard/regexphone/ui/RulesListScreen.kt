@@ -236,18 +236,21 @@ fun RulesListScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    RuleRepository.importJson(RuleIO.encode(pending), replace = false)
-                    pendingImport = null
-                    scope.launch { snackbar.showSnackbar("Merged ${pending.size} rule(s)") }
-                }) { Text("Merge") }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = {
+                        RuleRepository.importJson(RuleIO.encode(pending), replace = false)
+                        pendingImport = null
+                        scope.launch { snackbar.showSnackbar("Merged ${pending.size} rule(s)") }
+                    }) { Text("Merge") }
+                    TextButton(onClick = {
+                        RuleRepository.importJson(RuleIO.encode(pending), replace = true)
+                        pendingImport = null
+                        scope.launch { snackbar.showSnackbar("Replaced with ${pending.size} rule(s)") }
+                    }) { Text("Replace") }
+                }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    RuleRepository.importJson(RuleIO.encode(pending), replace = true)
-                    pendingImport = null
-                    scope.launch { snackbar.showSnackbar("Replaced with ${pending.size} rule(s)") }
-                }) { Text("Replace") }
+                TextButton(onClick = { pendingImport = null }) { Text("Cancel") }
             },
         )
     }
