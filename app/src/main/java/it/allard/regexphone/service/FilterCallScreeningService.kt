@@ -43,7 +43,7 @@ class FilterCallScreeningService : CallScreeningService() {
 
         val response = CallResponse.Builder().apply {
             when (decision) {
-                Decision.Allow -> Unit
+                is Decision.Allow -> Unit
                 is Decision.Block -> {
                     setDisallowCall(true)
                     setRejectCall(true)
