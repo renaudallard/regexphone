@@ -50,4 +50,9 @@ object RuleIO {
         var nextId = (current.maxOfOrNull { it.id } ?: 0L) + 1L
         return current + incoming.map { it.copy(id = nextId++) }
     }
+
+    fun reassignIds(rules: List<Rule>, startId: Long = 1L): List<Rule> {
+        var nextId = startId
+        return rules.map { it.copy(id = nextId++) }
+    }
 }

@@ -88,7 +88,12 @@ object RuleRepository {
 
     fun importJson(text: String, replace: Boolean): Result<Int> =
         RuleIO.decode(text).map { imported ->
-            persist(if (replace) imported else RuleIO.merge(cache, imported))
+            val next = if (replace) {
+                RuleIO.reassignIds(imported)
+            } else {
+                RuleIO.merge(cache, imported)
+            }
+            persist(next)
             imported.size
         }
 
