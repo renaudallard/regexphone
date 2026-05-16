@@ -282,6 +282,15 @@ fun RulesListScreen(
             pendingImportDropped = 0
         }
         val dropSuffix = if (pendingDropped > 0) " ($pendingDropped invalid will be skipped)" else ""
+        val perform = { replace: Boolean, verb: String, failMsg: String ->
+            val ok = RuleRepository.importJson(pendingText, replace = replace).isSuccess
+            if (ok) clear()
+            scope.launch {
+                snackbar.showSnackbar(
+                    if (ok) importSummary(verb, pendingCount, pendingDropped) else failMsg
+                )
+            }
+        }
         AlertDialog(
             onDismissRequest = clear,
             title = { Text("Import rules") },
@@ -294,24 +303,10 @@ fun RulesListScreen(
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
-                        val ok = RuleRepository.importJson(pendingText, replace = false).isSuccess
-                        if (ok) clear()
-                        scope.launch {
-                            snackbar.showSnackbar(
-                                if (ok) importSummary("Merged", pendingCount, pendingDropped)
-                                else "Could not merge rules"
-                            )
-                        }
+                        perform(false, "Merged", "Could not merge rules")
                     }) { Text("Merge") }
                     TextButton(onClick = {
-                        val ok = RuleRepository.importJson(pendingText, replace = true).isSuccess
-                        if (ok) clear()
-                        scope.launch {
-                            snackbar.showSnackbar(
-                                if (ok) importSummary("Replaced with", pendingCount, pendingDropped)
-                                else "Could not replace rules"
-                            )
-                        }
+                        perform(true, "Replaced with", "Could not replace rules")
                     }) { Text("Replace") }
                 }
             },
