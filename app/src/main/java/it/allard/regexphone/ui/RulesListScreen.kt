@@ -136,12 +136,18 @@ fun RulesListScreen(
         }
         RuleIO.decode(text)
             .onSuccess { imported ->
-                if (rules.isEmpty()) {
-                    RuleRepository.importJson(text, replace = true)
-                    scope.launch { snackbar.showSnackbar("Imported ${imported.size} rule(s)") }
-                } else {
-                    pendingImportText = text
-                    pendingImportCount = imported.size
+                when {
+                    imported.isEmpty() -> {
+                        scope.launch { snackbar.showSnackbar("Nothing to import") }
+                    }
+                    rules.isEmpty() -> {
+                        RuleRepository.importJson(text, replace = true)
+                        scope.launch { snackbar.showSnackbar("Imported ${imported.size} rule(s)") }
+                    }
+                    else -> {
+                        pendingImportText = text
+                        pendingImportCount = imported.size
+                    }
                 }
             }
             .onFailure {
