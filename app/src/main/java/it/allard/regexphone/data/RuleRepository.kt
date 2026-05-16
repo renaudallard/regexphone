@@ -32,16 +32,11 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 object RuleRepository {
     private const val PREFS = "regexphone_prefs"
     private const val KEY_RULES = "rules"
     private const val KEY_LAST_ID = "last_id"
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     @Volatile
     private var initialized = false
@@ -118,7 +113,7 @@ object RuleRepository {
         val newMax = newList.maxOfOrNull { it.id } ?: 0L
         val nextLastId = maxOf(newMax, lastIssuedId)
         val ok = prefs.edit()
-            .putString(KEY_RULES, json.encodeToString(newList))
+            .putString(KEY_RULES, RuleIO.encode(newList))
             .putLong(KEY_LAST_ID, nextLastId)
             .commit()
         if (ok) {
@@ -130,7 +125,6 @@ object RuleRepository {
 
     private fun load(): List<Rule> {
         val text = prefs.getString(KEY_RULES, null) ?: return emptyList()
-        return runCatching { json.decodeFromString<List<Rule>>(text) }
-            .getOrElse { emptyList() }
+        return RuleIO.decode(text).getOrElse { emptyList() }
     }
 }
