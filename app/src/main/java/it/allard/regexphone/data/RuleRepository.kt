@@ -71,18 +71,20 @@ object RuleRepository {
 
     fun currentRules(): List<Rule> = _rules.value
 
-    fun save(rule: Rule): Boolean {
-        val updated = _rules.value.toMutableList().also { list ->
+    fun save(rule: Rule): Boolean = persist { current, _ ->
+        current.toMutableList().also { list ->
             val idx = list.indexOfFirst { it.id == rule.id }
             if (idx >= 0) list[idx] = rule else list.add(rule)
         }
-        return persist(updated)
     }
 
-    fun delete(id: Long): Boolean = persist(_rules.value.filter { it.id != id })
+    fun delete(id: Long): Boolean = persist { current, _ ->
+        current.filter { it.id != id }
+    }
 
-    fun toggleEnabled(id: Long): Boolean =
-        persist(_rules.value.map { if (it.id == id) it.copy(enabled = !it.enabled) else it })
+    fun toggleEnabled(id: Long): Boolean = persist { current, _ ->
+        current.map { if (it.id == id) it.copy(enabled = !it.enabled) else it }
+    }
 
     fun findById(id: Long): Rule? = _rules.value.firstOrNull { it.id == id }
 
@@ -99,26 +101,29 @@ object RuleRepository {
 
     fun importJson(text: String, replace: Boolean): Result<Int> =
         RuleIO.decode(text).mapCatching { imported ->
-            val next = if (replace) {
-                RuleIO.reassignIds(imported, lastIssuedId + 1L)
-            } else {
-                RuleIO.merge(_rules.value, imported, lastIssuedId + 1L)
+            val ok = persist { current, lastId ->
+                if (replace) {
+                    RuleIO.reassignIds(imported, lastId + 1L)
+                } else {
+                    RuleIO.merge(current, imported, lastId + 1L)
+                }
             }
-            if (!persist(next)) error("Could not save imported rules")
+            if (!ok) error("Could not save imported rules")
             imported.size
         }
 
     @Synchronized
-    private fun persist(list: List<Rule>): Boolean {
-        val newMax = list.maxOfOrNull { it.id } ?: 0L
+    private fun persist(transform: (current: List<Rule>, lastId: Long) -> List<Rule>): Boolean {
+        val newList = transform(_rules.value, lastIssuedId)
+        val newMax = newList.maxOfOrNull { it.id } ?: 0L
         val nextLastId = maxOf(newMax, lastIssuedId)
         val ok = prefs.edit()
-            .putString(KEY_RULES, json.encodeToString(list))
+            .putString(KEY_RULES, json.encodeToString(newList))
             .putLong(KEY_LAST_ID, nextLastId)
             .commit()
         if (ok) {
             lastIssuedId = nextLastId
-            _rules.value = list
+            _rules.value = newList
         }
         return ok
     }
