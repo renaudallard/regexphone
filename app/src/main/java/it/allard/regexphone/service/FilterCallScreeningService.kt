@@ -60,7 +60,7 @@ class FilterCallScreeningService : CallScreeningService() {
     sealed interface Decision {
         data object Allow : Decision
         data class Block(val rule: Rule) : Decision
-        data class Silence(val rule: Rule) : Decision
+        data object Silence : Decision
     }
 
     companion object {
@@ -73,10 +73,10 @@ class FilterCallScreeningService : CallScreeningService() {
                 it.action == RuleAction.BLOCK && it.matches(number)
             }
             if (blockRule != null) return Decision.Block(blockRule)
-            val silenceRule = active.firstOrNull {
+            val hasSilence = active.any {
                 it.action == RuleAction.SILENCE && it.matches(number)
             }
-            return if (silenceRule != null) Decision.Silence(silenceRule) else Decision.Allow
+            return if (hasSilence) Decision.Silence else Decision.Allow
         }
     }
 }

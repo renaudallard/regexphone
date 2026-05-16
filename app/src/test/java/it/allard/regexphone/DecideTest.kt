@@ -146,9 +146,7 @@ class DecideTest {
     @Test
     fun silenceRuleSilencesMatchingNumber() {
         val r = rule(pattern = "^\\+1", action = RuleAction.SILENCE)
-        val d = FilterCallScreeningService.decide("+15551234567", listOf(r))
-        assertTrue(d is Decision.Silence)
-        assertEquals(r, (d as Decision.Silence).rule)
+        assertEquals(Decision.Silence, FilterCallScreeningService.decide("+15551234567", listOf(r)))
     }
 
     @Test
