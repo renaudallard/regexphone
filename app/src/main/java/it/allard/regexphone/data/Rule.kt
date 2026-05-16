@@ -45,8 +45,9 @@ data class Rule(
     val skipCallLog: Boolean = true,
 ) {
     @Transient
-    private val compiled: Pattern? =
+    private val compiled: Pattern? by lazy {
         runCatching { Pattern.compile(pattern) }.getOrNull()
+    }
 
     fun matches(number: String): Boolean =
         compiled?.matcher(number)?.find() == true
