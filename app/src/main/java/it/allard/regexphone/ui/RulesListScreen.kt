@@ -78,6 +78,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,7 +108,8 @@ fun RulesListScreen(
     val scope = rememberCoroutineScope()
 
     var menuOpen by remember { mutableStateOf(false) }
-    var pendingImport by remember { mutableStateOf<List<Rule>?>(null) }
+    var pendingImportText by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingImportCount by rememberSaveable { mutableStateOf(0) }
 
     val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -138,7 +140,8 @@ fun RulesListScreen(
                     RuleRepository.importJson(text, replace = true)
                     scope.launch { snackbar.showSnackbar("Imported ${imported.size} rule(s)") }
                 } else {
-                    pendingImport = imported
+                    pendingImportText = text
+                    pendingImportCount = imported.size
                 }
             }
             .onFailure {
@@ -224,33 +227,38 @@ fun RulesListScreen(
         }
     }
 
-    val pending = pendingImport
-    if (pending != null) {
+    val pendingText = pendingImportText
+    if (pendingText != null) {
+        val pendingCount = pendingImportCount
+        val clear = {
+            pendingImportText = null
+            pendingImportCount = 0
+        }
         AlertDialog(
-            onDismissRequest = { pendingImport = null },
+            onDismissRequest = clear,
             title = { Text("Import rules") },
             text = {
                 Text(
                     "You have ${rules.size} existing rule(s) and the file contains " +
-                        "${pending.size}. Replace everything, or merge?"
+                        "$pendingCount. Replace everything, or merge?"
                 )
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
-                        RuleRepository.importJson(RuleIO.encode(pending), replace = false)
-                        pendingImport = null
-                        scope.launch { snackbar.showSnackbar("Merged ${pending.size} rule(s)") }
+                        RuleRepository.importJson(pendingText, replace = false)
+                        clear()
+                        scope.launch { snackbar.showSnackbar("Merged $pendingCount rule(s)") }
                     }) { Text("Merge") }
                     TextButton(onClick = {
-                        RuleRepository.importJson(RuleIO.encode(pending), replace = true)
-                        pendingImport = null
-                        scope.launch { snackbar.showSnackbar("Replaced with ${pending.size} rule(s)") }
+                        RuleRepository.importJson(pendingText, replace = true)
+                        clear()
+                        scope.launch { snackbar.showSnackbar("Replaced with $pendingCount rule(s)") }
                     }) { Text("Replace") }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingImport = null }) { Text("Cancel") }
+                TextButton(onClick = clear) { Text("Cancel") }
             },
         )
     }
