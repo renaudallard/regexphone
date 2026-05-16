@@ -126,9 +126,9 @@ fun RulesListScreen(
     val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val ok = runCatching {
-            ctx.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
-                it.write(RuleRepository.exportJson())
-            }
+            val stream = ctx.contentResolver.openOutputStream(uri)
+                ?: error("openOutputStream returned null")
+            stream.bufferedWriter().use { it.write(RuleRepository.exportJson()) }
         }.isSuccess
         scope.launch {
             snackbar.showSnackbar(
