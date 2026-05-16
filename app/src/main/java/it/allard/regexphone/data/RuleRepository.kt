@@ -77,6 +77,13 @@ object RuleRepository {
         current.filter { it.id != id }
     }
 
+    fun restoreAt(rule: Rule, index: Int): Boolean = persist { current, _ ->
+        if (current.any { it.id == rule.id }) current
+        else current.toMutableList().also {
+            it.add(index.coerceIn(0, it.size), rule)
+        }
+    }
+
     fun toggleEnabled(id: Long): Boolean = persist { current, _ ->
         current.map { if (it.id == id) it.copy(enabled = !it.enabled) else it }
     }

@@ -240,6 +240,7 @@ fun RulesListScreen(
                             onEdit = { onEditRule(rule.id) },
                             onDelete = onDeleteCb@{
                                 val deleted = rule
+                                val originalIndex = rules.indexOf(rule)
                                 if (!RuleRepository.delete(deleted.id)) {
                                     scope.launch { snackbar.showSnackbar("Could not delete rule") }
                                     return@onDeleteCb
@@ -251,7 +252,7 @@ fun RulesListScreen(
                                         duration = SnackbarDuration.Short,
                                     )
                                     if (result == SnackbarResult.ActionPerformed &&
-                                        !RuleRepository.save(deleted)
+                                        !RuleRepository.restoreAt(deleted, originalIndex)
                                     ) {
                                         snackbar.showSnackbar("Could not restore rule")
                                     }
