@@ -122,8 +122,8 @@ fun EditRuleScreen(
                     }
                     TextButton(
                         enabled = canSave,
-                        onClick = {
-                            if (saving) return@TextButton
+                        onClick = onSave@{
+                            if (saving) return@onSave
                             saving = true
                             val rule = Rule(
                                 id = existing?.id ?: RuleRepository.nextId(),
