@@ -72,21 +72,18 @@ object RuleRepository {
 
     fun currentRules(): List<Rule> = cache
 
-    fun save(rule: Rule) {
+    fun save(rule: Rule): Boolean {
         val updated = cache.toMutableList().also { list ->
             val idx = list.indexOfFirst { it.id == rule.id }
             if (idx >= 0) list[idx] = rule else list.add(rule)
         }
-        persist(updated)
+        return persist(updated)
     }
 
-    fun delete(id: Long) {
-        persist(cache.filter { it.id != id })
-    }
+    fun delete(id: Long): Boolean = persist(cache.filter { it.id != id })
 
-    fun toggleEnabled(id: Long) {
+    fun toggleEnabled(id: Long): Boolean =
         persist(cache.map { if (it.id == id) it.copy(enabled = !it.enabled) else it })
-    }
 
     fun findById(id: Long): Rule? = cache.firstOrNull { it.id == id }
 
@@ -102,17 +99,17 @@ object RuleRepository {
     fun exportJson(): String = RuleIO.encode(cache)
 
     fun importJson(text: String, replace: Boolean): Result<Int> =
-        RuleIO.decode(text).map { imported ->
+        RuleIO.decode(text).mapCatching { imported ->
             val next = if (replace) {
                 RuleIO.reassignIds(imported, lastIssuedId + 1L)
             } else {
                 RuleIO.merge(cache, imported, lastIssuedId + 1L)
             }
-            persist(next)
+            if (!persist(next)) error("Could not save imported rules")
             imported.size
         }
 
-    private fun persist(list: List<Rule>) {
+    private fun persist(list: List<Rule>): Boolean {
         val newMax = list.maxOfOrNull { it.id } ?: 0L
         val previousLastId = lastIssuedId
         if (newMax > lastIssuedId) lastIssuedId = newMax
@@ -126,6 +123,7 @@ object RuleRepository {
         } else {
             lastIssuedId = previousLastId
         }
+        return ok
     }
 
     private fun load(): List<Rule> {

@@ -50,6 +50,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +60,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,6 +72,7 @@ import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
 import it.allard.regexphone.data.isValidRegex
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +96,8 @@ fun EditRuleScreen(
     }
     var saving by remember { mutableStateOf(false) }
     val canSave = patternValid && !saving
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -105,8 +111,11 @@ fun EditRuleScreen(
                 actions = {
                     if (existing != null) {
                         IconButton(onClick = {
-                            RuleRepository.delete(existing.id)
-                            onDone()
+                            if (RuleRepository.delete(existing.id)) {
+                                onDone()
+                            } else {
+                                scope.launch { snackbar.showSnackbar("Could not delete rule") }
+                            }
                         }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete")
                         }
@@ -125,13 +134,18 @@ fun EditRuleScreen(
                                 skipNotification = skipNotification,
                                 skipCallLog = skipCallLog,
                             )
-                            RuleRepository.save(rule)
-                            onDone()
+                            if (RuleRepository.save(rule)) {
+                                onDone()
+                            } else {
+                                saving = false
+                                scope.launch { snackbar.showSnackbar("Could not save rule") }
+                            }
                         },
                     ) { Text("Save") }
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier

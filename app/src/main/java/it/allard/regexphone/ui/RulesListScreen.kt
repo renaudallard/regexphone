@@ -158,9 +158,12 @@ fun RulesListScreen(
                         }
                     }
                     rules.isEmpty() -> {
-                        RuleRepository.importJson(text, replace = true)
+                        val ok = RuleRepository.importJson(text, replace = true).isSuccess
                         scope.launch {
-                            snackbar.showSnackbar(importSummary("Imported", outcome.rules.size, outcome.dropped))
+                            snackbar.showSnackbar(
+                                if (ok) importSummary("Imported", outcome.rules.size, outcome.dropped)
+                                else "Could not save imported rules"
+                            )
                         }
                     }
                     else -> {
@@ -229,19 +232,28 @@ fun RulesListScreen(
                     items(rules, key = { it.id }) { rule ->
                         RuleRow(
                             rule = rule,
-                            onToggle = { RuleRepository.toggleEnabled(rule.id) },
+                            onToggle = {
+                                if (!RuleRepository.toggleEnabled(rule.id)) {
+                                    scope.launch { snackbar.showSnackbar("Could not save change") }
+                                }
+                            },
                             onEdit = { onEditRule(rule.id) },
                             onDelete = {
                                 val deleted = rule
-                                RuleRepository.delete(deleted.id)
+                                if (!RuleRepository.delete(deleted.id)) {
+                                    scope.launch { snackbar.showSnackbar("Could not delete rule") }
+                                    return@RuleRow
+                                }
                                 scope.launch {
                                     val result = snackbar.showSnackbar(
                                         message = "Rule deleted",
                                         actionLabel = "Undo",
                                         duration = SnackbarDuration.Short,
                                     )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        RuleRepository.save(deleted)
+                                    if (result == SnackbarResult.ActionPerformed &&
+                                        !RuleRepository.save(deleted)
+                                    ) {
+                                        snackbar.showSnackbar("Could not restore rule")
                                     }
                                 }
                             },
@@ -275,17 +287,23 @@ fun RulesListScreen(
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
-                        RuleRepository.importJson(pendingText, replace = false)
+                        val ok = RuleRepository.importJson(pendingText, replace = false).isSuccess
                         clear()
                         scope.launch {
-                            snackbar.showSnackbar(importSummary("Merged", pendingCount, pendingDropped))
+                            snackbar.showSnackbar(
+                                if (ok) importSummary("Merged", pendingCount, pendingDropped)
+                                else "Could not merge rules"
+                            )
                         }
                     }) { Text("Merge") }
                     TextButton(onClick = {
-                        RuleRepository.importJson(pendingText, replace = true)
+                        val ok = RuleRepository.importJson(pendingText, replace = true).isSuccess
                         clear()
                         scope.launch {
-                            snackbar.showSnackbar(importSummary("Replaced with", pendingCount, pendingDropped))
+                            snackbar.showSnackbar(
+                                if (ok) importSummary("Replaced with", pendingCount, pendingDropped)
+                                else "Could not replace rules"
+                            )
                         }
                     }) { Text("Replace") }
                 }
