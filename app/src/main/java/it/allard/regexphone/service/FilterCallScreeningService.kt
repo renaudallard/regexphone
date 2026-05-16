@@ -66,17 +66,13 @@ class FilterCallScreeningService : CallScreeningService() {
     companion object {
         fun decide(number: String, rules: List<Rule>): Decision {
             val active = rules.filter { it.enabled }
-            if (active.any { it.action == RuleAction.ALLOW && it.matches(number) }) {
-                return Decision.Allow
-            }
-            val blockRule = active.firstOrNull {
-                it.action == RuleAction.BLOCK && it.matches(number)
-            }
-            if (blockRule != null) return Decision.Block(blockRule)
-            val hasSilence = active.any {
-                it.action == RuleAction.SILENCE && it.matches(number)
-            }
-            return if (hasSilence) Decision.Silence else Decision.Allow
+            fun firstMatching(action: RuleAction): Rule? =
+                active.firstOrNull { it.action == action && it.matches(number) }
+
+            if (firstMatching(RuleAction.ALLOW) != null) return Decision.Allow
+            firstMatching(RuleAction.BLOCK)?.let { return Decision.Block(it) }
+            return if (firstMatching(RuleAction.SILENCE) != null) Decision.Silence
+            else Decision.Allow
         }
     }
 }
