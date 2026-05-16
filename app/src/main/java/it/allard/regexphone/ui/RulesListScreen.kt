@@ -238,11 +238,11 @@ fun RulesListScreen(
                                 }
                             },
                             onEdit = { onEditRule(rule.id) },
-                            onDelete = {
+                            onDelete = onDeleteCb@{
                                 val deleted = rule
                                 if (!RuleRepository.delete(deleted.id)) {
                                     scope.launch { snackbar.showSnackbar("Could not delete rule") }
-                                    return@RuleRow
+                                    return@onDeleteCb
                                 }
                                 scope.launch {
                                     val result = snackbar.showSnackbar(
