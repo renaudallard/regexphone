@@ -93,7 +93,7 @@ object RuleRepository {
     @Synchronized
     fun nextId(): Long {
         lastIssuedId += 1L
-        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).apply()
+        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).commit()
         return lastIssuedId
     }
 
@@ -116,7 +116,7 @@ object RuleRepository {
         prefs.edit()
             .putString(KEY_RULES, json.encodeToString(list))
             .putLong(KEY_LAST_ID, lastIssuedId)
-            .apply()
+            .commit()
         cache = list
         _rules.value = list
     }
