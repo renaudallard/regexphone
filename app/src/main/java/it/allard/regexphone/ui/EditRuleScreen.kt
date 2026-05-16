@@ -153,10 +153,13 @@ fun EditRuleScreen(
                 singleLine = true,
                 isError = pattern.isNotBlank() && !patternValid,
                 supportingText = {
-                    if (pattern.isBlank()) {
-                        Text("Required. Matched with find(); anchor with ^ and \$ for whole-number match.")
-                    } else if (!patternValid) {
-                        Text("Invalid regular expression")
+                    when {
+                        pattern.isBlank() ->
+                            Text("Required. Matched with find(); anchor with ^ and \$ for whole-number match.")
+                        !patternValid ->
+                            Text("Invalid regular expression")
+                        pattern != trimmedPattern ->
+                            Text("Leading or trailing whitespace will be trimmed on save.")
                     }
                 },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
