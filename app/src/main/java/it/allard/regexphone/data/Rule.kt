@@ -28,7 +28,6 @@
 package it.allard.regexphone.data
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import java.util.regex.Pattern
 
 @Serializable
@@ -44,7 +43,6 @@ data class Rule(
     val skipNotification: Boolean = true,
     val skipCallLog: Boolean = true,
 ) {
-    @Transient
     private val compiled: Pattern? by lazy {
         runCatching { Pattern.compile(pattern) }.getOrNull()
     }
