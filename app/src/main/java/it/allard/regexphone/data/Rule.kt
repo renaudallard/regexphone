@@ -55,3 +55,6 @@ data class Rule(
 
 fun isValidRegex(pattern: String): Boolean =
     runCatching { Pattern.compile(pattern) }.isSuccess
+
+fun regexFinds(pattern: String, input: String): Boolean =
+    runCatching { Pattern.compile(pattern).matcher(input).find() }.getOrDefault(false)

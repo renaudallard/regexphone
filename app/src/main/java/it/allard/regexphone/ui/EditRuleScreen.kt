@@ -72,6 +72,7 @@ import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
 import it.allard.regexphone.data.isValidRegex
+import it.allard.regexphone.data.regexFinds
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -242,7 +243,7 @@ fun EditRuleScreen(
                     Spacer(Modifier.height(8.dp))
 
                     val patternMatches = remember(trimmedPattern, testNumber, patternValid) {
-                        patternValid && draftMatches(trimmedPattern, testNumber)
+                        patternValid && regexFinds(trimmedPattern, testNumber)
                     }
                     Text(
                         text = when {
@@ -293,6 +294,3 @@ private fun SwitchRow(
     }
 }
 
-private fun draftMatches(pattern: String, number: String): Boolean =
-    runCatching { java.util.regex.Pattern.compile(pattern).matcher(number).find() }
-        .getOrDefault(false)
