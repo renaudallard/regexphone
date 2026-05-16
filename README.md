@@ -115,7 +115,7 @@ REGEXPHONE_KEY_ALIAS=regexphone
 REGEXPHONE_KEY_PASSWORD=...
 ```
 
-If `REGEXPHONE_KEYSTORE_PATH` is not set, `assembleRelease` still works and emits `app-release-unsigned.apk`. Generate a fresh keystore with:
+If `REGEXPHONE_KEYSTORE_PATH` is unset or points to a missing file, `assembleRelease` still works and emits `app-release-unsigned.apk`. Generate a fresh keystore with:
 
 ```sh
 keytool -genkeypair -keystore ~/.keystores/regexphone-release.jks \
