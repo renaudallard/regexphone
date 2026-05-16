@@ -61,6 +61,14 @@ android {
     buildFeatures {
         compose = true
     }
+
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
+                "regexphone-${variant.versionName}.apk"
+        }
+    }
 }
 
 dependencies {
