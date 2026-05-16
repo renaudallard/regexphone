@@ -85,11 +85,8 @@ object RuleRepository {
 
     @Synchronized
     fun nextId(): Long {
-        val candidate = lastIssuedId + 1L
-        if (prefs.edit().putLong(KEY_LAST_ID, candidate).commit()) {
-            lastIssuedId = candidate
-        }
-        return candidate
+        lastIssuedId += 1L
+        return lastIssuedId
     }
 
     fun exportJson(): String = RuleIO.encode(_rules.value)
