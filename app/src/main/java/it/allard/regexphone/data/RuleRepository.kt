@@ -111,16 +111,14 @@ object RuleRepository {
     @Synchronized
     private fun persist(list: List<Rule>): Boolean {
         val newMax = list.maxOfOrNull { it.id } ?: 0L
-        val previousLastId = lastIssuedId
-        if (newMax > lastIssuedId) lastIssuedId = newMax
+        val nextLastId = maxOf(newMax, lastIssuedId)
         val ok = prefs.edit()
             .putString(KEY_RULES, json.encodeToString(list))
-            .putLong(KEY_LAST_ID, lastIssuedId)
+            .putLong(KEY_LAST_ID, nextLastId)
             .commit()
         if (ok) {
+            lastIssuedId = nextLastId
             _rules.value = list
-        } else {
-            lastIssuedId = previousLastId
         }
         return ok
     }
