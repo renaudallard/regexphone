@@ -177,6 +177,7 @@ Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exer
 
 - Only incoming calls; the `CallScreeningService` API has no outgoing-call hook.
 - **Callers already in your contact list bypass the regex entirely.** Android's telecom layer short-circuits `CallScreeningService` when the incoming number matches a saved contact: it returns *allow* without ever invoking the screening service, so no rule of yours can run. To block a number that is in contacts, delete (or temporarily delete) the contact entry first. This is by design at the system level — the official `CallScreeningService` documentation states the service is "called when a new incoming or outgoing call is added which is not in the user's contact list."
+- `java.util.regex.Pattern` has no built-in match timeout. A regex with nested quantifiers like `(a+)+b` can in theory backtrack catastrophically. In practice this does not matter for call screening because the input (a phone number) is at most a few dozen characters, and the Telecom subsystem already enforces a ~5 second deadline on the screening response: if a pathological rule ever did get stuck the call would simply be allowed.
 
 ---
 
