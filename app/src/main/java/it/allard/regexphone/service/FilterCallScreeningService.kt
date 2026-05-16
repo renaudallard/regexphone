@@ -27,7 +27,6 @@
 
 package it.allard.regexphone.service
 
-import android.net.Uri
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import it.allard.regexphone.data.Rule
@@ -38,7 +37,7 @@ class FilterCallScreeningService : CallScreeningService() {
 
     override fun onScreenCall(details: Call.Details) {
         RuleRepository.init(applicationContext)
-        val number = details.handle?.let { Uri.decode(it.schemeSpecificPart) } ?: ""
+        val number = details.handle?.schemeSpecificPart ?: ""
         val decision = decide(number, RuleRepository.currentRules())
 
         val response = CallResponse.Builder().apply {
