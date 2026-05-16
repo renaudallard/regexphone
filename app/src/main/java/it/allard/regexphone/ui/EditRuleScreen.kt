@@ -113,7 +113,7 @@ fun EditRuleScreen(
                             val rule = Rule(
                                 id = existing?.id ?: RuleRepository.nextId(),
                                 name = name.trim(),
-                                pattern = pattern,
+                                pattern = pattern.trim(),
                                 action = action,
                                 enabled = enabled,
                                 skipNotification = skipNotification,
