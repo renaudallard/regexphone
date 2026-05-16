@@ -86,7 +86,8 @@ fun EditRuleScreen(
     var skipCallLog by rememberSaveable { mutableStateOf(existing?.skipCallLog ?: true) }
     var testNumber by rememberSaveable { mutableStateOf("") }
 
-    val patternValid = pattern.isNotBlank() && isValidRegex(pattern)
+    val trimmedPattern = pattern.trim()
+    val patternValid = trimmedPattern.isNotEmpty() && isValidRegex(trimmedPattern)
     val canSave = patternValid
 
     Scaffold(
@@ -113,7 +114,7 @@ fun EditRuleScreen(
                             val rule = Rule(
                                 id = existing?.id ?: RuleRepository.nextId(),
                                 name = name.trim(),
-                                pattern = pattern.trim(),
+                                pattern = trimmedPattern,
                                 action = action,
                                 enabled = enabled,
                                 skipNotification = skipNotification,
@@ -218,7 +219,7 @@ fun EditRuleScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    val patternMatches = patternValid && draftMatches(pattern, testNumber)
+                    val patternMatches = patternValid && draftMatches(trimmedPattern, testNumber)
                     Text(
                         text = when {
                             !patternValid -> "Enter a valid pattern to test."
