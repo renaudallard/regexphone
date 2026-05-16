@@ -20,13 +20,16 @@ android {
     signingConfigs {
         create("release") {
             val path = providers.gradleProperty("REGEXPHONE_KEYSTORE_PATH").orNull
-            if (path != null) {
-                storeFile = file(path)
+            val keystoreFile = path?.let { file(it) }
+            if (keystoreFile != null && keystoreFile.isFile) {
+                storeFile = keystoreFile
                 storePassword = providers.gradleProperty("REGEXPHONE_KEYSTORE_PASSWORD").orNull
                 keyAlias = providers.gradleProperty("REGEXPHONE_KEY_ALIAS").orNull
                 keyPassword = providers.gradleProperty("REGEXPHONE_KEY_PASSWORD").orNull
                 enableV2Signing = true
                 enableV3Signing = true
+            } else if (path != null) {
+                logger.warn("REGEXPHONE_KEYSTORE_PATH=$path does not exist; release will be unsigned.")
             }
         }
     }
