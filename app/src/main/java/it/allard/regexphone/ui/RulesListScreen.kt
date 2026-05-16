@@ -78,6 +78,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -108,7 +109,9 @@ fun RulesListScreen(
     val scope = rememberCoroutineScope()
 
     var menuOpen by remember { mutableStateOf(false) }
-    var pendingImportText by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingImportText by rememberSaveable(stateSaver = SafeImportTextSaver) {
+        mutableStateOf<String?>(null)
+    }
     var pendingImportCount by rememberSaveable { mutableStateOf(0) }
     var pendingImportDropped by rememberSaveable { mutableStateOf(0) }
 
@@ -434,3 +437,10 @@ private fun importSummary(verb: String, count: Int, dropped: Int): String {
     val base = "$verb $count rule(s)"
     return if (dropped > 0) "$base ($dropped skipped)" else base
 }
+
+private const val MAX_SAVED_IMPORT_CHARS = 200_000
+
+private val SafeImportTextSaver: Saver<String?, String> = Saver(
+    save = { value -> value?.takeIf { it.length <= MAX_SAVED_IMPORT_CHARS } },
+    restore = { it },
+)
