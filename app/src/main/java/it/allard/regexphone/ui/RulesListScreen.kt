@@ -366,14 +366,11 @@ private fun RuleRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = rule.name.ifBlank { "(unnamed)" },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                )
-                Spacer(Modifier.height(0.dp))
-            }
+            Text(
+                text = rule.name.ifBlank { "(unnamed)" },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+            )
             Text(
                 text = rule.pattern,
                 style = MaterialTheme.typography.bodyMedium,
