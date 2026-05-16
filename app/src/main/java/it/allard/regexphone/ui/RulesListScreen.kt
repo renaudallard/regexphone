@@ -288,7 +288,7 @@ fun RulesListScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = {
                         val ok = RuleRepository.importJson(pendingText, replace = false).isSuccess
-                        clear()
+                        if (ok) clear()
                         scope.launch {
                             snackbar.showSnackbar(
                                 if (ok) importSummary("Merged", pendingCount, pendingDropped)
@@ -298,7 +298,7 @@ fun RulesListScreen(
                     }) { Text("Merge") }
                     TextButton(onClick = {
                         val ok = RuleRepository.importJson(pendingText, replace = true).isSuccess
-                        clear()
+                        if (ok) clear()
                         scope.launch {
                             snackbar.showSnackbar(
                                 if (ok) importSummary("Replaced with", pendingCount, pendingDropped)
