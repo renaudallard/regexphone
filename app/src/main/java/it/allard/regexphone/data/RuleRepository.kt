@@ -50,9 +50,6 @@ object RuleRepository {
     private lateinit var prefs: SharedPreferences
 
     @Volatile
-    private var cache: List<Rule> = emptyList()
-
-    @Volatile
     private var lastIssuedId: Long = 0L
 
     private val _rules = MutableStateFlow<List<Rule>>(emptyList())
@@ -63,31 +60,31 @@ object RuleRepository {
         if (initialized) return
         prefs = context.applicationContext
             .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        cache = load()
+        val loaded = load()
         lastIssuedId = maxOf(
             prefs.getLong(KEY_LAST_ID, 0L),
-            cache.maxOfOrNull { it.id } ?: 0L,
+            loaded.maxOfOrNull { it.id } ?: 0L,
         )
-        _rules.value = cache
+        _rules.value = loaded
         initialized = true
     }
 
-    fun currentRules(): List<Rule> = cache
+    fun currentRules(): List<Rule> = _rules.value
 
     fun save(rule: Rule): Boolean {
-        val updated = cache.toMutableList().also { list ->
+        val updated = _rules.value.toMutableList().also { list ->
             val idx = list.indexOfFirst { it.id == rule.id }
             if (idx >= 0) list[idx] = rule else list.add(rule)
         }
         return persist(updated)
     }
 
-    fun delete(id: Long): Boolean = persist(cache.filter { it.id != id })
+    fun delete(id: Long): Boolean = persist(_rules.value.filter { it.id != id })
 
     fun toggleEnabled(id: Long): Boolean =
-        persist(cache.map { if (it.id == id) it.copy(enabled = !it.enabled) else it })
+        persist(_rules.value.map { if (it.id == id) it.copy(enabled = !it.enabled) else it })
 
-    fun findById(id: Long): Rule? = cache.firstOrNull { it.id == id }
+    fun findById(id: Long): Rule? = _rules.value.firstOrNull { it.id == id }
 
     @Synchronized
     fun nextId(): Long {
@@ -98,14 +95,14 @@ object RuleRepository {
         return candidate
     }
 
-    fun exportJson(): String = RuleIO.encode(cache)
+    fun exportJson(): String = RuleIO.encode(_rules.value)
 
     fun importJson(text: String, replace: Boolean): Result<Int> =
         RuleIO.decode(text).mapCatching { imported ->
             val next = if (replace) {
                 RuleIO.reassignIds(imported, lastIssuedId + 1L)
             } else {
-                RuleIO.merge(cache, imported, lastIssuedId + 1L)
+                RuleIO.merge(_rules.value, imported, lastIssuedId + 1L)
             }
             if (!persist(next)) error("Could not save imported rules")
             imported.size
@@ -121,7 +118,6 @@ object RuleRepository {
             .putLong(KEY_LAST_ID, lastIssuedId)
             .commit()
         if (ok) {
-            cache = list
             _rules.value = list
         } else {
             lastIssuedId = previousLastId
