@@ -88,7 +88,8 @@ fun EditRuleScreen(
 
     val trimmedPattern = pattern.trim()
     val patternValid = trimmedPattern.isNotEmpty() && isValidRegex(trimmedPattern)
-    val canSave = patternValid
+    var saving by remember { mutableStateOf(false) }
+    val canSave = patternValid && !saving
 
     Scaffold(
         topBar = {
@@ -111,6 +112,7 @@ fun EditRuleScreen(
                     TextButton(
                         enabled = canSave,
                         onClick = {
+                            saving = true
                             val rule = Rule(
                                 id = existing?.id ?: RuleRepository.nextId(),
                                 name = name.trim(),
