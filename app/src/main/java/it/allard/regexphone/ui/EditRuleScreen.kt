@@ -241,8 +241,8 @@ fun EditRuleScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    val patternMatches = patternValid && remember(trimmedPattern, testNumber) {
-                        draftMatches(trimmedPattern, testNumber)
+                    val patternMatches = remember(trimmedPattern, testNumber, patternValid) {
+                        patternValid && draftMatches(trimmedPattern, testNumber)
                     }
                     Text(
                         text = when {
