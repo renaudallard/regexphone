@@ -46,13 +46,15 @@ class RegexGuardTest {
 
     // (.*\d){12}x backtracks exponentially on a digits-only input; the
     // textbook (a+)+b is optimized away by modern OpenJDK and stays fast.
+    // The full default allowance is used because a shorter, budget-cut run
+    // does not blacklist the pattern.
     @Test
     fun catastrophicPatternTimesOutAndIsPoisoned() {
         val evil = Pattern.compile("(.*\\d){12}x")
         val input = "1".repeat(28)
-        assertNull(RegexGuard.find(evil, input, 200))
+        assertNull(RegexGuard.find(evil, input, RegexGuard.DEFAULT_TIMEOUT_MS))
         val start = System.nanoTime()
-        assertNull(RegexGuard.find(evil, input, 200))
+        assertNull(RegexGuard.find(evil, input, RegexGuard.DEFAULT_TIMEOUT_MS))
         val elapsedMs = (System.nanoTime() - start) / 1_000_000
         assertTrue("poisoned pattern should be rejected immediately", elapsedMs < 100)
     }

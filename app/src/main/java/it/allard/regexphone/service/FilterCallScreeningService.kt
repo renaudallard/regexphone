@@ -90,14 +90,21 @@ class FilterCallScreeningService : CallScreeningService() {
     }
 
     companion object {
+        // Stay well inside Telecom's ~5 second response deadline even when
+        // several fresh patterns each exhaust their individual watchdog
+        // timeout on the first call after process start.
+        private const val TOTAL_BUDGET_MS = 3500L
+
         fun decide(number: String, rules: List<Rule>): Decision =
             decide(listOf(number), rules)
 
         fun decide(numbers: List<String>, rules: List<Rule>): Decision {
+            val deadline = System.nanoTime() + TOTAL_BUDGET_MS * 1_000_000L
+            fun remainingMs(): Long = (deadline - System.nanoTime()) / 1_000_000L
             val active = rules.filter { it.enabled }
             fun firstMatching(action: RuleAction): Rule? =
                 active.firstOrNull { rule ->
-                    rule.action == action && numbers.any { rule.matches(it) }
+                    rule.action == action && numbers.any { rule.matches(it, remainingMs()) }
                 }
 
             firstMatching(RuleAction.ALLOW)?.let { return Decision.Allow(it) }

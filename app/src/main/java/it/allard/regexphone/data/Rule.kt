@@ -46,9 +46,10 @@ data class Rule(
         runCatching { Pattern.compile(pattern) }.getOrNull()
     }
 
-    fun matches(number: String): Boolean {
+    fun matches(number: String, timeoutMs: Long = RegexGuard.DEFAULT_TIMEOUT_MS): Boolean {
+        if (timeoutMs <= 0) return false
         val pattern = compiled ?: return false
-        return RegexGuard.find(pattern, number) == true
+        return RegexGuard.find(pattern, number, timeoutMs.coerceAtMost(RegexGuard.DEFAULT_TIMEOUT_MS)) == true
     }
 }
 

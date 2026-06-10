@@ -76,7 +76,9 @@ object RegexGuard {
             task.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
             if (state.compareAndSet(0, 2)) stranded.incrementAndGet()
-            poisoned.add(pattern.pattern())
+            // Only blacklist a pattern that had its full time allowance; a
+            // run cut short by the caller's remaining budget proves nothing.
+            if (timeoutMs >= DEFAULT_TIMEOUT_MS) poisoned.add(pattern.pattern())
             null
         } catch (_: Exception) {
             null
