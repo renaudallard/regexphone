@@ -32,6 +32,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -75,7 +76,14 @@ private fun AppNav() {
             val id = backStackEntry.arguments?.getLong("id") ?: -1L
             EditRuleScreen(
                 ruleId = id.takeIf { it >= 0 },
-                onDone = { nav.popBackStack() },
+                onDone = {
+                    // The entry leaves RESUMED as soon as the first pop
+                    // starts, so a second tap cannot pop the start
+                    // destination and blank the NavHost.
+                    if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                        nav.popBackStack()
+                    }
+                },
             )
         }
     }
