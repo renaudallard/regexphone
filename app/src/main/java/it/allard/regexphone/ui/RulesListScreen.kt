@@ -508,7 +508,11 @@ private fun importSummary(verb: String, count: Int, dropped: Int): String {
     return if (dropped > 0) "$base ($dropped skipped)" else base
 }
 
-private const val MAX_SAVED_IMPORT_CHARS = 200_000
+// Strings parcel as UTF-16 into the saved-instance-state Bundle, which
+// shares a roughly 1 MB Binder transaction with everything else; keep the
+// kept import text well below that. Larger pending imports simply do not
+// survive process death.
+private const val MAX_SAVED_IMPORT_CHARS = 20_000
 private const val MAX_IMPORT_BYTES = 1_000_000
 
 private val SafeImportTextSaver: Saver<String?, String> = Saver(
