@@ -107,7 +107,7 @@ fun EditRuleScreen(
         trimmedPattern.isNotEmpty() && isValidRegex(trimmedPattern)
     }
     var saving by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val canSave = patternValid && !saving
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
