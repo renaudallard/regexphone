@@ -36,5 +36,4 @@ fun testRule(
     action: RuleAction = RuleAction.BLOCK,
     enabled: Boolean = true,
     skipNotification: Boolean = true,
-    skipCallLog: Boolean = true,
-) = Rule(id, "r$id", pattern, action, enabled, skipNotification, skipCallLog)
+) = Rule(id, "r$id", pattern, action, enabled, skipNotification)

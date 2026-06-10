@@ -112,22 +112,20 @@ class DecideTest {
             pattern = "^\\+1",
             action = RuleAction.BLOCK,
             skipNotification = false,
-            skipCallLog = false,
         )
         val d = FilterCallScreeningService.decide("+15551234567", listOf(r)) as Decision.Block
         assertFalse(d.rule.skipNotification)
-        assertFalse(d.rule.skipCallLog)
     }
 
     @Test
     fun firstMatchingBlockRuleWinsForFlags() {
         val a = testRule(
             id = 1, pattern = "^\\+1", action = RuleAction.BLOCK,
-            skipNotification = true, skipCallLog = true,
+            skipNotification = true,
         )
         val b = testRule(
             id = 2, pattern = "^\\+15", action = RuleAction.BLOCK,
-            skipNotification = false, skipCallLog = false,
+            skipNotification = false,
         )
         val d = FilterCallScreeningService.decide("+15551234567", listOf(a, b)) as Decision.Block
         assertEquals(1L, d.rule.id)

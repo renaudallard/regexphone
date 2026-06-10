@@ -102,13 +102,13 @@ class RuleIOTest {
     @Test
     fun mergePreservesNonIdFields() {
         val current = listOf(testRule(5, "x"))
-        val incoming = listOf(testRule(99, "y", RuleAction.ALLOW, skipCallLog = false))
+        val incoming = listOf(testRule(99, "y", RuleAction.ALLOW, skipNotification = false))
         val merged = RuleIO.merge(current, incoming)
         val added = merged.last()
         assertEquals(6L, added.id)
         assertEquals("y", added.pattern)
         assertEquals(RuleAction.ALLOW, added.action)
-        assertEquals(false, added.skipCallLog)
+        assertEquals(false, added.skipNotification)
         assertNotEquals(99L, added.id)
     }
 }

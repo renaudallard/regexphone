@@ -54,7 +54,8 @@ class FilterCallScreeningService : CallScreeningService() {
                 is Decision.Block -> {
                     setDisallowCall(true)
                     setRejectCall(true)
-                    setSkipCallLog(decision.rule.skipCallLog)
+                    // setSkipCallLog is reserved for carrier and system
+                    // screeners; the platform ignores it for role holders.
                     setSkipNotification(decision.rule.skipNotification)
                 }
                 is Decision.Silence -> setSilenceCall(true)

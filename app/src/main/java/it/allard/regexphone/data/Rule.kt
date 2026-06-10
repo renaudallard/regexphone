@@ -41,7 +41,6 @@ data class Rule(
     val action: RuleAction,
     val enabled: Boolean = true,
     val skipNotification: Boolean = true,
-    val skipCallLog: Boolean = true,
 ) {
     private val compiled: Pattern? by lazy {
         runCatching { Pattern.compile(pattern) }.getOrNull()

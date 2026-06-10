@@ -22,12 +22,12 @@
 
 ## What it does
 
-For every incoming call, RegexPhone matches the caller's phone number against your rules and either lets it ring, rejects it, or silences the ringtone. Each rule is a regular expression with an action (`BLOCK`, `SILENCE`, or `ALLOW`) and, for block rules, controls over whether the missed-call notification and the call-log entry should appear.
+For every incoming call, RegexPhone matches the caller's phone number against your rules and either lets it ring, rejects it, or silences the ringtone. Each rule is a regular expression with an action (`BLOCK`, `SILENCE`, or `ALLOW`) and, for block rules, control over whether the missed-call notification should appear.
 
 ## Highlights
 
 - **Three actions per rule.** `BLOCK` rejects the call; `SILENCE` mutes the ringtone but lets the call still hit the call log and notification shade; `ALLOW` whitelists.
-- **Per-block flags.** Skip the missed-call notification and/or skip the call-log entry, independently, per rule.
+- **Per-block flag.** Skip the missed-call notification, per rule. Android itself always records blocked calls in the call log; only carrier and system screeners may suppress that, so RegexPhone does not pretend to offer it.
 - **Predictable precedence.** Allow beats block beats silence; otherwise the call is allowed. Order of rules within each action is irrelevant.
 - **Live tester.** The edit screen previews the verdict and which flags will apply for a sample number as you type.
 - **Import / Export.** Save the full rule set to a JSON file via Storage Access Framework, restore it on another device, or merge two sets together. No permissions needed.
@@ -42,7 +42,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
   <img src="branding/screenshots/edit-rule.png" alt="Edit rule" width="300" />
 </p>
 
-<p align="center"><em>Left: rules list with role-status banner. Right: edit screen with per-rule notification and call-log toggles.</em></p>
+<p align="center"><em>Left: rules list with role-status banner. Right: edit screen with the per-rule notification toggle.</em></p>
 
 ## How matching works
 
@@ -57,7 +57,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 For each incoming call:
 
 1. If any enabled `ALLOW` rule matches, the call is allowed.
-2. Else if any enabled `BLOCK` rule matches, the call is rejected. The **skip notification** and **skip call log** flags of the *first* matching block rule apply.
+2. Else if any enabled `BLOCK` rule matches, the call is rejected. The **skip notification** flag of the *first* matching block rule applies.
 3. Else if any enabled `SILENCE` rule matches, the call rings silently (no audible ringtone), but the call log and notifications are unaffected.
 4. Otherwise the call is allowed.
 
@@ -177,6 +177,7 @@ Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exer
 ## Limitations
 
 - Only incoming calls are screened. The platform also hands outgoing calls to the screening service (for caller-ID purposes) but ignores any screening response for them; RegexPhone answers those with a no-op without evaluating rules.
+- Blocked calls always appear in the call log with the *blocked* type. The `CallScreeningService` API reserves call-log suppression for carrier and system apps.
 - **Callers already in your contact list bypass the regex entirely.** Android's telecom layer short-circuits `CallScreeningService` when the incoming number matches a saved contact: it returns *allow* without ever invoking the screening service, so no rule of yours can run. To block a number that is in contacts, delete (or temporarily delete) the contact entry first. This is by design at the system level — the official `CallScreeningService` documentation states the service is "called when a new incoming or outgoing call is added which is not in the user's contact list."
 - `java.util.regex.Pattern` has no built-in match timeout, and a regex with nested quantifiers like `(a+)+b` can backtrack catastrophically. RegexPhone runs every match on a watchdog thread with a 1 second deadline: a pattern that misses it is treated as *no match* and is skipped for the rest of the process lifetime, so the screening response always stays within Telecom's ~5 second budget. A runaway match cannot be cancelled mid-flight, so it may keep one core busy in the background until it finishes.
 

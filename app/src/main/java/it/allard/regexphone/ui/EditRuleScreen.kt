@@ -98,7 +98,6 @@ fun EditRuleScreen(
     var action by rememberSaveable { mutableStateOf(existing?.action ?: RuleAction.BLOCK) }
     var enabled by rememberSaveable { mutableStateOf(existing?.enabled ?: true) }
     var skipNotification by rememberSaveable { mutableStateOf(existing?.skipNotification ?: true) }
-    var skipCallLog by rememberSaveable { mutableStateOf(existing?.skipCallLog ?: true) }
     var testNumber by rememberSaveable { mutableStateOf("") }
 
     val trimmedPattern = pattern.trim()
@@ -138,7 +137,6 @@ fun EditRuleScreen(
                                 action = action,
                                 enabled = enabled,
                                 skipNotification = skipNotification,
-                                skipCallLog = skipCallLog,
                             )
                             if (RuleRepository.save(rule)) {
                                 onDone()
@@ -216,13 +214,6 @@ fun EditRuleScreen(
                     checked = skipNotification,
                     onChange = { skipNotification = it },
                 )
-                Spacer(Modifier.height(8.dp))
-                SwitchRow(
-                    label = "Skip call log",
-                    sublabel = "Don't record the blocked call in the call log",
-                    checked = skipCallLog,
-                    onChange = { skipCallLog = it },
-                )
             }
             Spacer(Modifier.height(24.dp))
 
@@ -264,11 +255,8 @@ fun EditRuleScreen(
                             action == RuleAction.ALLOW -> "Match → ALLOW"
                             action == RuleAction.SILENCE -> "Match → SILENCE (ringtone muted, call still logged and notified)"
                             else -> {
-                                val flags = listOf(
-                                    if (skipNotification) "silent notif" else "notif shown",
-                                    if (skipCallLog) "not logged" else "logged",
-                                ).joinToString(", ")
-                                "Match → BLOCK ($flags)"
+                                val flag = if (skipNotification) "silent notif" else "notif shown"
+                                "Match → BLOCK ($flag)"
                             }
                         },
                         style = MaterialTheme.typography.bodyMedium,
