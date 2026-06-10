@@ -63,6 +63,13 @@ class RuleIOTest {
     }
 
     @Test
+    fun decodeAcceptsUtf8Bom() {
+        val rules = listOf(testRule(1, "^\\+1"))
+        val decoded = RuleIO.decode("\uFEFF" + RuleIO.encode(rules)).getOrThrow()
+        assertEquals(rules, decoded)
+    }
+
+    @Test
     fun salvageRecoversValidElementsFromDamagedArray() {
         val good = testRule(1, "^\\+1")
         val text = """

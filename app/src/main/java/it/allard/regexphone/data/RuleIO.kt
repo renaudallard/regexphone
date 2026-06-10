@@ -46,7 +46,9 @@ object RuleIO {
 
     fun decodeWithSummary(text: String): Result<DecodeOutcome> =
         runCatching {
-            val all = json.decodeFromString<List<Rule>>(text)
+            // Editors such as Windows Notepad prepend a BOM, which the JSON
+            // parser rejects.
+            val all = json.decodeFromString<List<Rule>>(text.removePrefix("\uFEFF"))
             val valid = all.filter { it.pattern.isNotBlank() && isValidRegex(it.pattern) }
             DecodeOutcome(valid, all.size - valid.size)
         }
