@@ -77,6 +77,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.allard.regexphone.R
+import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
@@ -312,11 +313,14 @@ fun EditRuleScreen(
                                     } else {
                                         allRules + edited
                                     }
+                                val candidates =
+                                    FilterCallScreeningService.candidateNumbers(testNumber, countryIso)
                                 TesterPreview(
-                                    editedTimedOut = regexFinds(trimmedPattern, testNumber) == null,
+                                    editedTimedOut = candidates.any { regexFinds(trimmedPattern, it) == null },
                                     decision = FilterCallScreeningService.decide(
-                                        FilterCallScreeningService.candidateNumbers(testNumber, countryIso),
+                                        candidates,
                                         rules,
+                                        RegexGuard.Scope.TESTER,
                                     ),
                                 )
                             }

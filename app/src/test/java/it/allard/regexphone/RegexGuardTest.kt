@@ -64,4 +64,21 @@ class RegexGuardTest {
         val rule = testRule(pattern = "(.*\\d){12}y", action = RuleAction.BLOCK)
         assertFalse(rule.matches("2".repeat(28)))
     }
+
+    @Test
+    fun testerTimeoutDoesNotBlacklistForScreening() {
+        val evil = Pattern.compile("(.*\\d){12}w")
+        val input = "4".repeat(28)
+        assertNull(RegexGuard.find(evil, input, RegexGuard.DEFAULT_TIMEOUT_MS, RegexGuard.Scope.TESTER))
+        // the screening path still admits the pattern and runs the match
+        val screeningStart = System.nanoTime()
+        assertNull(RegexGuard.find(evil, input, 100, RegexGuard.Scope.SCREENING))
+        val screeningMs = (System.nanoTime() - screeningStart) / 1_000_000
+        assertTrue("screening run should not be fast-failed by the tester blacklist", screeningMs >= 100)
+        // while the tester itself fast-fails on any input from now on
+        val testerStart = System.nanoTime()
+        assertNull(RegexGuard.find(evil, "5".repeat(28), RegexGuard.DEFAULT_TIMEOUT_MS, RegexGuard.Scope.TESTER))
+        val testerMs = (System.nanoTime() - testerStart) / 1_000_000
+        assertTrue("tester blacklist should reject the pattern immediately", testerMs < 100)
+    }
 }

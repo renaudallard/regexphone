@@ -46,10 +46,15 @@ data class Rule(
         runCatching { Pattern.compile(pattern) }.getOrNull()
     }
 
-    fun matches(number: String, timeoutMs: Long = RegexGuard.DEFAULT_TIMEOUT_MS): Boolean {
+    fun matches(
+        number: String,
+        timeoutMs: Long = RegexGuard.DEFAULT_TIMEOUT_MS,
+        scope: RegexGuard.Scope = RegexGuard.Scope.SCREENING,
+    ): Boolean {
         if (timeoutMs <= 0) return false
         val pattern = compiled ?: return false
-        return RegexGuard.find(pattern, number, timeoutMs.coerceAtMost(RegexGuard.DEFAULT_TIMEOUT_MS)) == true
+        val timeout = timeoutMs.coerceAtMost(RegexGuard.DEFAULT_TIMEOUT_MS)
+        return RegexGuard.find(pattern, number, timeout, scope) == true
     }
 }
 
@@ -58,9 +63,11 @@ fun isValidRegex(pattern: String): Boolean =
 
 /**
  * Returns whether [pattern] is found in [input], false for an invalid
- * pattern, or null when the match timed out (see [RegexGuard]).
+ * pattern, or null when the match timed out (see [RegexGuard]). Used only by
+ * the live tester, so it runs in the tester scope and cannot blacklist a
+ * pattern for the screening service.
  */
 fun regexFinds(pattern: String, input: String): Boolean? {
     val compiled = runCatching { Pattern.compile(pattern) }.getOrNull() ?: return false
-    return RegexGuard.find(compiled, input)
+    return RegexGuard.find(compiled, input, scope = RegexGuard.Scope.TESTER)
 }

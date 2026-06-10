@@ -38,61 +38,87 @@ import java.util.regex.Pattern
  * Runs regex matches on watchdog threads with a deadline. java.util.regex has
  * no step limit, so a catastrophically backtracking pattern would otherwise
  * hang the caller; in the screening service that means missing the Telecom
- * response deadline and letting a blocked call ring through. A match cannot be
- * cancelled once started, so a pattern and input pair that misses its
- * deadline is remembered and never run again for the lifetime of the process,
- * and the number of abandoned matches still spinning in the background is
- * capped.
+ * response deadline and letting a blocked call ring through.
+ *
+ * A match cannot be cancelled once started. A pattern that misses its full
+ * allowance is blacklisted for the rest of the process, separately per
+ * [Scope]: the live tester runs the same rules against arbitrary typed input
+ * in the same process and must not blacklist a saved rule for real calls. The
+ * number of watchdog threads alive at once is a hard cap enforced by
+ * reservation, and an abandoned runaway is dropped to minimum priority.
  */
 object RegexGuard {
     const val DEFAULT_TIMEOUT_MS = 1000L
-    private const val MAX_STRANDED = 4
-    private const val MAX_POISONED = 256
+    private const val MAX_LIVE_THREADS = 6
+    private const val MAX_POISONED = 64
 
-    // Keyed by pattern AND input: a pattern that explodes on one string can
-    // be harmless on another, and the live tester must not blacklist a saved
-    // rule for the screening service, which runs in the same process.
-    private val poisoned = ConcurrentHashMap.newKeySet<String>()
-    private val stranded = AtomicInteger(0)
+    /** Which blacklist a match reads and writes. */
+    enum class Scope { SCREENING, TESTER }
 
-    private fun poisonKey(pattern: Pattern, input: String): String =
-        pattern.pattern() + "\u0000" + input
+    private val screeningPoisoned = ConcurrentHashMap.newKeySet<String>()
+    private val testerPoisoned = ConcurrentHashMap.newKeySet<String>()
+    private val liveThreads = AtomicInteger(0)
 
     /**
      * Returns whether [pattern] is found in [input], or null when the match
-     * did not finish within [timeoutMs] or failed. Callers must treat null as
-     * no match.
+     * did not finish within [timeoutMs] or could not run. Callers must treat
+     * null as no match.
      */
-    fun find(pattern: Pattern, input: String, timeoutMs: Long = DEFAULT_TIMEOUT_MS): Boolean? {
+    fun find(
+        pattern: Pattern,
+        input: String,
+        timeoutMs: Long = DEFAULT_TIMEOUT_MS,
+        scope: Scope = Scope.SCREENING,
+    ): Boolean? {
         if (timeoutMs <= 0) return null
-        if (poisonKey(pattern, input) in poisoned) return null
-        if (stranded.get() >= MAX_STRANDED) return null
-        // 0 = running, 1 = completed in time, 2 = abandoned by the waiter.
-        val state = AtomicInteger(0)
+        val key = pattern.pattern()
+        // The tester also honors the screening blacklist so its preview
+        // mirrors what the service would do; the service never consults the
+        // tester's blacklist.
+        if (key in screeningPoisoned) return null
+        if (scope == Scope.TESTER && key in testerPoisoned) return null
+        if (!reserveThread()) return null
         val task = FutureTask {
             try {
                 pattern.matcher(input).find()
             } finally {
-                if (!state.compareAndSet(0, 1)) stranded.decrementAndGet()
+                liveThreads.decrementAndGet()
             }
         }
-        Thread(task, "regex-guard").apply {
-            isDaemon = true
-            priority = Thread.MIN_PRIORITY
-        }.start()
+        val thread = Thread(task, "regex-guard").apply { isDaemon = true }
+        try {
+            thread.start()
+        } catch (t: Throwable) {
+            liveThreads.decrementAndGet()
+            return null
+        }
         return try {
             task.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
-            if (state.compareAndSet(0, 2)) stranded.incrementAndGet()
+            // The runaway cannot be stopped; stop it competing with the rest
+            // of the app while it burns its core in the background.
+            thread.priority = Thread.MIN_PRIORITY
             // Only blacklist a run that had its full time allowance; one cut
-            // short by the caller's remaining budget proves nothing.
+            // short by the caller's remaining budget proves nothing. When the
+            // set is full, drop the new entry rather than wiping known ones.
             if (timeoutMs >= DEFAULT_TIMEOUT_MS) {
-                if (poisoned.size >= MAX_POISONED) poisoned.clear()
-                poisoned.add(poisonKey(pattern, input))
+                val registry = if (scope == Scope.SCREENING) screeningPoisoned else testerPoisoned
+                if (registry.size < MAX_POISONED) registry.add(key)
             }
             null
         } catch (_: Exception) {
             null
+        }
+    }
+
+    // Reserve a slot before starting the thread so the cap is an invariant,
+    // not a racy check. Healthy matches hold a slot for microseconds; only
+    // abandoned runaways hold one for long.
+    private fun reserveThread(): Boolean {
+        while (true) {
+            val current = liveThreads.get()
+            if (current >= MAX_LIVE_THREADS) return false
+            if (liveThreads.compareAndSet(current, current + 1)) return true
         }
     }
 }

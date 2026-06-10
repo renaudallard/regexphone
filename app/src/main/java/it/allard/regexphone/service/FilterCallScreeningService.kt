@@ -31,6 +31,7 @@ import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
+import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
@@ -105,13 +106,17 @@ class FilterCallScreeningService : CallScreeningService() {
         fun decide(number: String, rules: List<Rule>): Decision =
             decide(listOf(number), rules)
 
-        fun decide(numbers: List<String>, rules: List<Rule>): Decision {
+        fun decide(
+            numbers: List<String>,
+            rules: List<Rule>,
+            scope: RegexGuard.Scope = RegexGuard.Scope.SCREENING,
+        ): Decision {
             val deadline = System.nanoTime() + TOTAL_BUDGET_MS * 1_000_000L
             fun remainingMs(): Long = (deadline - System.nanoTime()) / 1_000_000L
             val active = rules.filter { it.enabled }
             fun firstMatching(action: RuleAction): Rule? =
                 active.firstOrNull { rule ->
-                    rule.action == action && numbers.any { rule.matches(it, remainingMs()) }
+                    rule.action == action && numbers.any { rule.matches(it, remainingMs(), scope) }
                 }
 
             firstMatching(RuleAction.ALLOW)?.let { return Decision.Allow(it) }
