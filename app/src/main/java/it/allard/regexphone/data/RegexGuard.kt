@@ -39,16 +39,24 @@ import java.util.regex.Pattern
  * no step limit, so a catastrophically backtracking pattern would otherwise
  * hang the caller; in the screening service that means missing the Telecom
  * response deadline and letting a blocked call ring through. A match cannot be
- * cancelled once started, so a pattern that misses its deadline is remembered
- * and never run again for the lifetime of the process, and the number of
- * abandoned matches still spinning in the background is capped.
+ * cancelled once started, so a pattern and input pair that misses its
+ * deadline is remembered and never run again for the lifetime of the process,
+ * and the number of abandoned matches still spinning in the background is
+ * capped.
  */
 object RegexGuard {
     const val DEFAULT_TIMEOUT_MS = 1000L
     private const val MAX_STRANDED = 4
+    private const val MAX_POISONED = 256
 
+    // Keyed by pattern AND input: a pattern that explodes on one string can
+    // be harmless on another, and the live tester must not blacklist a saved
+    // rule for the screening service, which runs in the same process.
     private val poisoned = ConcurrentHashMap.newKeySet<String>()
     private val stranded = AtomicInteger(0)
+
+    private fun poisonKey(pattern: Pattern, input: String): String =
+        pattern.pattern() + "\u0000" + input
 
     /**
      * Returns whether [pattern] is found in [input], or null when the match
@@ -57,7 +65,7 @@ object RegexGuard {
      */
     fun find(pattern: Pattern, input: String, timeoutMs: Long = DEFAULT_TIMEOUT_MS): Boolean? {
         if (timeoutMs <= 0) return null
-        if (pattern.pattern() in poisoned) return null
+        if (poisonKey(pattern, input) in poisoned) return null
         if (stranded.get() >= MAX_STRANDED) return null
         // 0 = running, 1 = completed in time, 2 = abandoned by the waiter.
         val state = AtomicInteger(0)
@@ -76,9 +84,12 @@ object RegexGuard {
             task.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
             if (state.compareAndSet(0, 2)) stranded.incrementAndGet()
-            // Only blacklist a pattern that had its full time allowance; a
-            // run cut short by the caller's remaining budget proves nothing.
-            if (timeoutMs >= DEFAULT_TIMEOUT_MS) poisoned.add(pattern.pattern())
+            // Only blacklist a run that had its full time allowance; one cut
+            // short by the caller's remaining budget proves nothing.
+            if (timeoutMs >= DEFAULT_TIMEOUT_MS) {
+                if (poisoned.size >= MAX_POISONED) poisoned.clear()
+                poisoned.add(poisonKey(pattern, input))
+            }
             null
         } catch (_: Exception) {
             null
