@@ -63,6 +63,28 @@ class RuleIOTest {
     }
 
     @Test
+    fun salvageRecoversValidElementsFromDamagedArray() {
+        val good = testRule(1, "^\\+1")
+        val text = """
+            [
+                {"id":1,"name":"r1","pattern":"^\\+1","action":"BLOCK","enabled":true,"skipNotification":true,"skipCallLog":true},
+                {"name":"missing required fields"},
+                {"id":3,"name":"bad regex","pattern":"[","action":"BLOCK","enabled":true,"skipNotification":true,"skipCallLog":true},
+                {"id":4,"name":"bad action","pattern":"x","action":"EXPLODE","enabled":true,"skipNotification":true,"skipCallLog":true}
+            ]
+        """.trimIndent()
+        assertTrue(RuleIO.decode(text).isFailure)
+        val salvaged = RuleIO.salvage(text)
+        assertEquals(listOf(good.copy(name = "r1")), salvaged)
+    }
+
+    @Test
+    fun salvageOfNonArrayIsEmpty() {
+        assertEquals(emptyList<Rule>(), RuleIO.salvage("not json"))
+        assertEquals(emptyList<Rule>(), RuleIO.salvage("{\"id\":1}"))
+    }
+
+    @Test
     fun mergeAssignsFreshIds() {
         val current = listOf(testRule(1, "a"), testRule(2, "b"))
         val incoming = listOf(testRule(1, "c"), testRule(2, "d"))

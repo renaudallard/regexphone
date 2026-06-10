@@ -37,6 +37,7 @@ object RuleRepository {
     private const val PREFS = "regexphone_prefs"
     private const val KEY_RULES = "rules"
     private const val KEY_LAST_ID = "last_id"
+    private const val KEY_RULES_UNREADABLE = "rules_unreadable"
 
     private var initialized = false
 
@@ -46,6 +47,9 @@ object RuleRepository {
 
     private val _rules = MutableStateFlow<List<Rule>>(emptyList())
     val rules: StateFlow<List<Rule>> = _rules.asStateFlow()
+
+    private val _storageWarning = MutableStateFlow(false)
+    val storageWarning: StateFlow<Boolean> = _storageWarning.asStateFlow()
 
     @Synchronized
     fun init(context: Context) {
@@ -93,6 +97,10 @@ object RuleRepository {
         return lastIssuedId
     }
 
+    fun dismissStorageWarning() {
+        _storageWarning.value = false
+    }
+
     fun exportJson(): String = RuleIO.encode(_rules.value)
 
     fun importRules(imported: List<Rule>, replace: Boolean): Boolean =
@@ -122,6 +130,12 @@ object RuleRepository {
 
     private fun load(): List<Rule> {
         val text = prefs.getString(KEY_RULES, null) ?: return emptyList()
-        return RuleIO.decode(text).getOrElse { emptyList() }
+        return RuleIO.decode(text).getOrElse {
+            // Keep the unreadable payload aside so the next save cannot
+            // overwrite it, then recover whatever still parses.
+            prefs.edit().putString(KEY_RULES_UNREADABLE, text).commit()
+            _storageWarning.value = true
+            RuleIO.salvage(text).distinctBy { rule -> rule.id }
+        }
     }
 }

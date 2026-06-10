@@ -30,6 +30,8 @@ package it.allard.regexphone.data
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 
 object RuleIO {
     private val json = Json {
@@ -51,6 +53,19 @@ object RuleIO {
 
     fun decode(text: String): Result<List<Rule>> =
         decodeWithSummary(text).map { it.rules }
+
+    /**
+     * Best-effort decode for damaged payloads: recovers every element that
+     * still parses as a valid rule and drops the rest. Returns an empty list
+     * when the text is not a JSON array at all.
+     */
+    fun salvage(text: String): List<Rule> {
+        val elements = runCatching { json.parseToJsonElement(text).jsonArray }
+            .getOrElse { return emptyList() }
+        return elements
+            .mapNotNull { element -> runCatching { json.decodeFromJsonElement<Rule>(element) }.getOrNull() }
+            .filter { it.pattern.isNotBlank() && isValidRegex(it.pattern) }
+    }
 
     fun merge(
         current: List<Rule>,

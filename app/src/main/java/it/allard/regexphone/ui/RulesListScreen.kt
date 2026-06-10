@@ -108,6 +108,7 @@ fun RulesListScreen(
 ) {
     val ctx = LocalContext.current
     val rules by RuleRepository.rules.collectAsStateWithLifecycle()
+    val storageWarning by RuleRepository.storageWarning.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -224,6 +225,9 @@ fun RulesListScreen(
                 .fillMaxSize(),
         ) {
             RoleCard()
+            if (storageWarning) {
+                StorageWarningCard(onDismiss = { RuleRepository.dismissStorageWarning() })
+            }
             HorizontalDivider()
             if (rules.isEmpty()) {
                 EmptyState()
@@ -373,6 +377,35 @@ private fun RoleCard() {
                     Text("Set as default")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StorageWarningCard(onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Stored rules were damaged",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Some rules could not be read. Everything recoverable is shown below " +
+                    "and the unreadable data was kept in app storage. Re-import an exported " +
+                    "file if rules are missing.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = onDismiss) { Text("Dismiss") }
         }
     }
 }
