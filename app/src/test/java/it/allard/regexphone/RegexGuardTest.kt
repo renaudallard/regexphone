@@ -25,36 +25,41 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-package it.allard.regexphone.data
+package it.allard.regexphone
 
-import kotlinx.serialization.Serializable
+import it.allard.regexphone.data.RegexGuard
+import it.allard.regexphone.data.RuleAction
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
 import java.util.regex.Pattern
 
-@Serializable
-enum class RuleAction { BLOCK, SILENCE, ALLOW }
+class RegexGuardTest {
 
-@Serializable
-data class Rule(
-    val id: Long,
-    val name: String,
-    val pattern: String,
-    val action: RuleAction,
-    val enabled: Boolean = true,
-    val skipNotification: Boolean = true,
-    val skipCallLog: Boolean = true,
-) {
-    private val compiled: Pattern? by lazy {
-        runCatching { Pattern.compile(pattern) }.getOrNull()
+    @Test
+    fun normalPatternMatches() {
+        assertEquals(true, RegexGuard.find(Pattern.compile("^\\+1"), "+15551234567"))
+        assertEquals(false, RegexGuard.find(Pattern.compile("^\\+44"), "+15551234567"))
     }
 
-    fun matches(number: String): Boolean {
-        val pattern = compiled ?: return false
-        return RegexGuard.find(pattern, number) == true
+    // (.*\d){12}x backtracks exponentially on a digits-only input; the
+    // textbook (a+)+b is optimized away by modern OpenJDK and stays fast.
+    @Test
+    fun catastrophicPatternTimesOutAndIsPoisoned() {
+        val evil = Pattern.compile("(.*\\d){12}x")
+        val input = "1".repeat(28)
+        assertNull(RegexGuard.find(evil, input, 200))
+        val start = System.nanoTime()
+        assertNull(RegexGuard.find(evil, input, 200))
+        val elapsedMs = (System.nanoTime() - start) / 1_000_000
+        assertTrue("poisoned pattern should be rejected immediately", elapsedMs < 100)
+    }
+
+    @Test
+    fun timedOutPatternNeverMatchesARule() {
+        val rule = testRule(pattern = "(.*\\d){12}y", action = RuleAction.BLOCK)
+        assertFalse(rule.matches("2".repeat(28)))
     }
 }
-
-fun isValidRegex(pattern: String): Boolean =
-    runCatching { Pattern.compile(pattern) }.isSuccess
-
-fun regexFinds(pattern: String, input: String): Boolean =
-    runCatching { Pattern.compile(pattern).matcher(input).find() }.getOrDefault(false)
