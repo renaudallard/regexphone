@@ -39,7 +39,7 @@ class DecideTest {
 
     @Test
     fun emptyRulesAllowsCall() {
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+15551234567", emptyList()))
+        assertTrue(FilterCallScreeningService.decide("+15551234567", emptyList()) is Decision.Allow)
     }
 
     @Test
@@ -53,7 +53,7 @@ class DecideTest {
     @Test
     fun blockRuleIgnoresNonMatchingNumber() {
         val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.BLOCK))
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+33123456789", rules))
+        assertTrue(FilterCallScreeningService.decide("+33123456789", rules) is Decision.Allow)
     }
 
     @Test
@@ -62,7 +62,23 @@ class DecideTest {
             testRule(id = 1, pattern = "^\\+1", action = RuleAction.BLOCK),
             testRule(id = 2, pattern = "^\\+15551", action = RuleAction.ALLOW),
         )
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+15551234567", rules))
+        assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Allow)
+    }
+
+    @Test
+    fun allowDecisionExposesMatchingRule() {
+        val rules = listOf(
+            testRule(id = 1, pattern = "^\\+1", action = RuleAction.BLOCK),
+            testRule(id = 2, pattern = "^\\+15551", action = RuleAction.ALLOW),
+        )
+        val d = FilterCallScreeningService.decide("+15551234567", rules) as Decision.Allow
+        assertEquals(2L, d.rule?.id)
+    }
+
+    @Test
+    fun allowWithoutAnyMatchCarriesNoRule() {
+        val d = FilterCallScreeningService.decide("+15551234567", emptyList()) as Decision.Allow
+        assertEquals(null, d.rule)
     }
 
     @Test
@@ -71,19 +87,19 @@ class DecideTest {
             testRule(id = 1, pattern = "^\\+15551", action = RuleAction.ALLOW),
             testRule(id = 2, pattern = "^\\+1", action = RuleAction.BLOCK),
         )
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+15551234567", rules))
+        assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Allow)
     }
 
     @Test
     fun disabledRulesAreIgnored() {
         val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.BLOCK, enabled = false))
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+15551234567", rules))
+        assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Allow)
     }
 
     @Test
     fun invalidRegexDoesNotMatch() {
         val rules = listOf(testRule(pattern = "[", action = RuleAction.BLOCK))
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("anything", rules))
+        assertTrue(FilterCallScreeningService.decide("anything", rules) is Decision.Allow)
     }
 
     @Test
@@ -96,7 +112,7 @@ class DecideTest {
     @Test
     fun hiddenNumberNotBlockedByDigitPattern() {
         val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.BLOCK))
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("", rules))
+        assertTrue(FilterCallScreeningService.decide("", rules) is Decision.Allow)
     }
 
     @Test
@@ -142,13 +158,13 @@ class DecideTest {
     fun noCandidateNumberFormMatchingAllows() {
         val rules = listOf(testRule(pattern = "^\\+44", action = RuleAction.BLOCK))
         val d = FilterCallScreeningService.decide(listOf("0470123456", "+32470123456"), rules)
-        assertEquals(Decision.Allow, d)
+        assertTrue(d is Decision.Allow)
     }
 
     @Test
     fun silenceRuleSilencesMatchingNumber() {
         val r = testRule(pattern = "^\\+1", action = RuleAction.SILENCE)
-        assertEquals(Decision.Silence, FilterCallScreeningService.decide("+15551234567", listOf(r)))
+        assertTrue(FilterCallScreeningService.decide("+15551234567", listOf(r)) is Decision.Silence)
     }
 
     @Test
@@ -168,6 +184,6 @@ class DecideTest {
             testRule(id = 1, pattern = "^\\+1", action = RuleAction.SILENCE),
             testRule(id = 2, pattern = "^\\+155", action = RuleAction.ALLOW),
         )
-        assertEquals(Decision.Allow, FilterCallScreeningService.decide("+15551234567", rules))
+        assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Allow)
     }
 }

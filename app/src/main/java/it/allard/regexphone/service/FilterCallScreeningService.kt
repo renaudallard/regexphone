@@ -83,9 +83,10 @@ class FilterCallScreeningService : CallScreeningService() {
     }
 
     sealed interface Decision {
-        data object Allow : Decision
+        /** [rule] is the matching allow rule, or null when nothing matched. */
+        data class Allow(val rule: Rule? = null) : Decision
         data class Block(val rule: Rule) : Decision
-        data object Silence : Decision
+        data class Silence(val rule: Rule) : Decision
     }
 
     companion object {
@@ -99,10 +100,10 @@ class FilterCallScreeningService : CallScreeningService() {
                     rule.action == action && numbers.any { rule.matches(it) }
                 }
 
-            if (firstMatching(RuleAction.ALLOW) != null) return Decision.Allow
+            firstMatching(RuleAction.ALLOW)?.let { return Decision.Allow(it) }
             firstMatching(RuleAction.BLOCK)?.let { return Decision.Block(it) }
-            return if (firstMatching(RuleAction.SILENCE) != null) Decision.Silence
-            else Decision.Allow
+            firstMatching(RuleAction.SILENCE)?.let { return Decision.Silence(it) }
+            return Decision.Allow()
         }
     }
 }

@@ -71,11 +71,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
 import it.allard.regexphone.data.isValidRegex
 import it.allard.regexphone.data.regexFinds
+import it.allard.regexphone.service.FilterCallScreeningService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -240,26 +242,43 @@ fun EditRuleScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    val patternMatches by produceState<Boolean?>(
-                        initialValue = false,
-                        trimmedPattern, testNumber, patternValid,
+                    // Preview the decision the service would take, across all
+                    // enabled rules with the current edits applied, not just
+                    // the rule being edited.
+                    val allRules by RuleRepository.rules.collectAsStateWithLifecycle()
+                    val editedId = existing?.id ?: 0L
+                    val preview by produceState<TesterPreview?>(
+                        initialValue = null,
+                        trimmedPattern, testNumber, patternValid, name,
+                        action, enabled, skipNotification, allRules,
                     ) {
-                        value = if (!patternValid) false
-                        else withContext(Dispatchers.Default) { regexFinds(trimmedPattern, testNumber) }
+                        value = if (!patternValid || testNumber.isBlank()) null
+                        else withContext(Dispatchers.Default) {
+                            val edited = Rule(
+                                id = editedId,
+                                name = name.trim(),
+                                pattern = trimmedPattern,
+                                action = action,
+                                enabled = enabled,
+                                skipNotification = skipNotification,
+                            )
+                            val rules =
+                                if (allRules.any { it.id == editedId }) {
+                                    allRules.map { if (it.id == editedId) edited else it }
+                                } else {
+                                    allRules + edited
+                                }
+                            TesterPreview(
+                                editedTimedOut = regexFinds(trimmedPattern, testNumber) == null,
+                                decision = FilterCallScreeningService.decide(testNumber, rules),
+                            )
+                        }
                     }
                     Text(
                         text = when {
                             !patternValid -> "Enter a valid pattern to test."
                             testNumber.isBlank() -> "Enter a number to test."
-                            patternMatches == null -> "Pattern took too long → ALLOW (treated as no match)"
-                            patternMatches == false -> "No match → ALLOW"
-                            !enabled -> "Match, but rule is disabled → ALLOW"
-                            action == RuleAction.ALLOW -> "Match → ALLOW"
-                            action == RuleAction.SILENCE -> "Match → SILENCE (ringtone muted, call still logged and notified)"
-                            else -> {
-                                val flag = if (skipNotification) "silent notif" else "notif shown"
-                                "Match → BLOCK ($flag)"
-                            }
+                            else -> testerVerdict(preview, editedId)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -289,6 +308,30 @@ fun EditRuleScreen(
                 TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
             },
         )
+    }
+}
+
+private data class TesterPreview(
+    val editedTimedOut: Boolean,
+    val decision: FilterCallScreeningService.Decision,
+)
+
+private fun testerVerdict(preview: TesterPreview?, editedId: Long): String {
+    if (preview == null) return "Evaluating…"
+    val prefix =
+        if (preview.editedTimedOut) "Pattern took too long, treated as no match. " else ""
+    fun byWhom(rule: Rule): String =
+        if (rule.id == editedId) "this rule" else "rule '${rule.name.ifBlank { "(unnamed)" }}'"
+    return prefix + when (val d = preview.decision) {
+        is FilterCallScreeningService.Decision.Allow ->
+            if (d.rule == null) "No rule matches → ALLOW"
+            else "Match on ${byWhom(d.rule)} → ALLOW"
+        is FilterCallScreeningService.Decision.Block -> {
+            val flag = if (d.rule.skipNotification) "silent notif" else "notif shown"
+            "Match on ${byWhom(d.rule)} → BLOCK ($flag)"
+        }
+        is FilterCallScreeningService.Decision.Silence ->
+            "Match on ${byWhom(d.rule)} → SILENCE (ringtone muted, call still logged and notified)"
     }
 }
 
