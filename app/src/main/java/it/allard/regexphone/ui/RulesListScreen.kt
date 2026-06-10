@@ -77,6 +77,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
@@ -96,7 +97,9 @@ import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleIO
 import it.allard.regexphone.data.RuleRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
@@ -121,14 +124,17 @@ fun RulesListScreen(
 
     val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val ok = runCatching {
-            // "wt" truncates the document; plain "w" leaves trailing bytes
-            // on providers that do not truncate, corrupting the export.
-            val stream = ctx.contentResolver.openOutputStream(uri, "wt")
-                ?: error("openOutputStream returned null")
-            stream.bufferedWriter().use { it.write(RuleRepository.exportJson()) }
-        }.isSuccess
         scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    // "wt" truncates the document; plain "w" leaves trailing
+                    // bytes on providers that do not truncate, corrupting the
+                    // export.
+                    val stream = ctx.contentResolver.openOutputStream(uri, "wt")
+                        ?: error("openOutputStream returned null")
+                    stream.bufferedWriter().use { it.write(RuleRepository.exportJson()) }
+                }.isSuccess
+            }
             snackbar.showSnackbar(
                 if (ok) "Exported ${rules.size} rule(s)" else "Export failed"
             )
@@ -137,48 +143,50 @@ fun RulesListScreen(
 
     val importLauncher = rememberLauncherForActivityResult(OpenDocument()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val result = runCatching {
-            ctx.contentResolver.openInputStream(uri)?.use { readUtf8WithLimit(it, MAX_IMPORT_BYTES) }
-        }
-        if (result.exceptionOrNull() is FileTooLargeException) {
-            scope.launch { snackbar.showSnackbar("File too large to import") }
-            return@rememberLauncherForActivityResult
-        }
-        val text = result.getOrNull()
-        if (text == null) {
-            scope.launch { snackbar.showSnackbar("Could not read file") }
-            return@rememberLauncherForActivityResult
-        }
-        RuleIO.decodeWithSummary(text)
-            .onSuccess { outcome ->
-                when {
-                    outcome.rules.isEmpty() -> {
-                        scope.launch {
+        scope.launch {
+            // SAF documents can be backed by slow or remote providers, so
+            // keep the read and the parse off the main thread.
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    ctx.contentResolver.openInputStream(uri)?.use { readUtf8WithLimit(it, MAX_IMPORT_BYTES) }
+                }
+            }
+            if (result.exceptionOrNull() is FileTooLargeException) {
+                snackbar.showSnackbar("File too large to import")
+                return@launch
+            }
+            val text = result.getOrNull()
+            if (text == null) {
+                snackbar.showSnackbar("Could not read file")
+                return@launch
+            }
+            withContext(Dispatchers.Default) { RuleIO.decodeWithSummary(text) }
+                .onSuccess { outcome ->
+                    when {
+                        outcome.rules.isEmpty() -> {
                             snackbar.showSnackbar(
                                 if (outcome.dropped > 0) "Nothing to import (${outcome.dropped} invalid)"
                                 else "Nothing to import"
                             )
                         }
-                    }
-                    rules.isEmpty() -> {
-                        scope.launch {
+                        rules.isEmpty() -> {
                             val ok = RuleRepository.importRules(outcome.rules, replace = true)
                             snackbar.showSnackbar(
                                 if (ok) importSummary("Imported", outcome.rules.size, outcome.dropped)
                                 else "Could not save imported rules"
                             )
                         }
-                    }
-                    else -> {
-                        pendingImportText = text
-                        pendingImportCount = outcome.rules.size
-                        pendingImportDropped = outcome.dropped
+                        else -> {
+                            pendingImportText = text
+                            pendingImportCount = outcome.rules.size
+                            pendingImportDropped = outcome.dropped
+                        }
                     }
                 }
-            }
-            .onFailure {
-                scope.launch { snackbar.showSnackbar("Not a valid rules file") }
-            }
+                .onFailure {
+                    snackbar.showSnackbar("Not a valid rules file")
+                }
+        }
     }
 
     Scaffold(
@@ -284,12 +292,15 @@ fun RulesListScreen(
             pendingImportDropped = 0
         }
         val dropSuffix = if (pendingDropped > 0) " ($pendingDropped invalid will be skipped)" else ""
-        val pendingRules = remember(pendingText) {
-            RuleIO.decode(pendingText).getOrElse { emptyList() }
+        val pendingRules by produceState<List<Rule>?>(initialValue = null, pendingText) {
+            value = withContext(Dispatchers.Default) {
+                RuleIO.decode(pendingText).getOrElse { emptyList() }
+            }
         }
-        val perform = { replace: Boolean, verb: String, failMsg: String ->
+        val perform = perform@{ replace: Boolean, verb: String, failMsg: String ->
+            val toImport = pendingRules ?: return@perform
             scope.launch {
-                val ok = RuleRepository.importRules(pendingRules, replace = replace)
+                val ok = RuleRepository.importRules(toImport, replace = replace)
                 if (ok) clear()
                 snackbar.showSnackbar(
                     if (ok) importSummary(verb, pendingCount, pendingDropped) else failMsg
@@ -307,10 +318,10 @@ fun RulesListScreen(
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = {
+                    TextButton(enabled = pendingRules != null, onClick = {
                         perform(false, "Merged", "Could not merge rules")
                     }) { Text("Merge") }
-                    TextButton(onClick = {
+                    TextButton(enabled = pendingRules != null, onClick = {
                         perform(true, "Replaced with", "Could not replace rules")
                     }) { Text("Replace") }
                 }
