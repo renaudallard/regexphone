@@ -162,6 +162,7 @@ app/src/main/java/it/allard/regexphone/
 ├── MainActivity.kt
 ├── data/
 │   ├── Rule.kt                      data class + compiled-Pattern cache
+│   ├── RegexGuard.kt                watchdog-bounded regex matching
 │   ├── RuleIO.kt                    pure encode / decode / merge helpers
 │   └── RuleRepository.kt            singleton, SharedPreferences-backed
 ├── service/
@@ -172,7 +173,7 @@ app/src/main/java/it/allard/regexphone/
     └── EditRuleScreen.kt            form + live tester
 ```
 
-Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exercises `FilterCallScreeningService.decide()`, `RuleIOTest.kt` covers JSON round-trip and merge-with-fresh-ids. Both run without Android stubs.
+Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exercises `FilterCallScreeningService.decide()`, `RuleIOTest.kt` covers JSON round-trip, import filtering, salvage and id reassignment, and `RegexGuardTest.kt` covers the match watchdog. All run without Android stubs.
 
 ## Limitations
 
