@@ -1,4 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RegexPhone</string>
+
+    <!-- Rules list -->
+    <string name="menu">Menu</string>
+    <string name="menu_export">Export rules</string>
+    <string name="menu_import">Import rules</string>
+    <string name="add_rule">Add rule</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="undo">Undo</string>
+    <string name="rule_unnamed">(unnamed)</string>
+    <string name="empty_title">No rules yet</string>
+    <string name="empty_body">Tap + to add a regex rule, or Import from the menu.</string>
+    <string name="action_block">BLOCK</string>
+    <string name="action_silence">SILENCE</string>
+    <string name="action_allow">ALLOW</string>
+    <string name="rule_deleted">Rule deleted</string>
+    <string name="delete_failed">Could not delete rule</string>
+    <string name="restore_failed">Could not restore rule</string>
+    <string name="save_change_failed">Could not save change</string>
+
+    <!-- Role status card -->
+    <string name="role_active_title">Active as call-screening app</string>
+    <string name="role_inactive_title">Not the default call-screening app</string>
+    <string name="role_active_body">Incoming calls will be checked against the rules below.</string>
+    <string name="role_inactive_body">Rules below have no effect until this app is set as the default.</string>
+    <string name="role_contacts_note">Android skips screening for callers saved in your contacts, so rules can\'t block a known contact. Delete the contact first if you need a regex to apply.</string>
+    <string name="role_set_default">Set as default</string>
+
+    <!-- Storage warning card -->
+    <string name="storage_warning_title">Stored rules were damaged</string>
+    <string name="storage_warning_body">Some rules could not be read. Everything recoverable is shown below and the unreadable data was kept in app storage. Re-import an exported file if rules are missing.</string>
+
+    <!-- Import and export -->
+    <plurals name="export_done">
+        <item quantity="one">Exported %d rule</item>
+        <item quantity="other">Exported %d rules</item>
+    </plurals>
+    <string name="export_failed">Export failed</string>
+    <string name="import_too_large">File too large to import</string>
+    <string name="import_read_failed">Could not read file</string>
+    <string name="import_invalid_file">Not a valid rules file</string>
+    <string name="import_nothing">Nothing to import</string>
+    <string name="import_nothing_invalid">Nothing to import (%d invalid)</string>
+    <string name="import_save_failed">Could not save imported rules</string>
+    <string name="import_merge_failed">Could not merge rules</string>
+    <string name="import_replace_failed">Could not replace rules</string>
+    <plurals name="import_imported">
+        <item quantity="one">Imported %d rule</item>
+        <item quantity="other">Imported %d rules</item>
+    </plurals>
+    <plurals name="import_merged">
+        <item quantity="one">Merged %d rule</item>
+        <item quantity="other">Merged %d rules</item>
+    </plurals>
+    <plurals name="import_replaced">
+        <item quantity="one">Replaced with %d rule</item>
+        <item quantity="other">Replaced with %d rules</item>
+    </plurals>
+    <string name="import_skipped_suffix">" (%d skipped)"</string>
+    <string name="import_dialog_text">You have %1$d existing rule(s) and the file contains %2$d%3$s. Replace everything, or merge?</string>
+    <string name="import_dialog_skipped">" (%d invalid will be skipped)"</string>
+    <string name="merge">Merge</string>
+    <string name="replace">Replace</string>
+
+    <!-- Rule editor -->
+    <string name="new_rule">New rule</string>
+    <string name="edit_rule">Edit rule</string>
+    <string name="back">Back</string>
+    <string name="save">Save</string>
+    <string name="save_rule_failed">Could not save rule</string>
+    <string name="field_name_label">Name (optional)</string>
+    <string name="field_pattern_label">Regex pattern</string>
+    <string name="pattern_hint_required">Required. Matched with find(); anchor with ^ and $ for whole-number match.</string>
+    <string name="pattern_invalid">Invalid regular expression</string>
+    <string name="pattern_whitespace_hint">Leading or trailing whitespace will be trimmed on save.</string>
+    <string name="action_label">Action</string>
+    <string name="enabled_label">Enabled</string>
+    <string name="skip_notification_label">Skip notification</string>
+    <string name="skip_notification_sublabel">Hide the missed-call notification when blocked</string>
+    <string name="delete_dialog_title">Delete rule?</string>
+    <string name="delete_dialog_body">This will permanently remove the rule.</string>
+    <string name="discard_title">Discard changes?</string>
+    <string name="discard_body">Unsaved changes to this rule will be lost.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
+
+    <!-- Live tester -->
+    <string name="tester_title">Test against a number</string>
+    <string name="tester_field_label">Phone number</string>
+    <string name="tester_need_pattern">Enter a valid pattern to test.</string>
+    <string name="tester_need_number">Enter a number to test.</string>
+    <string name="tester_evaluating">Evaluating…</string>
+    <string name="tester_timeout_prefix">"Pattern took too long, treated as no match. "</string>
+    <string name="tester_this_rule">this rule</string>
+    <string name="tester_rule_name">rule \'%s\'</string>
+    <string name="tester_no_match">No rule matches → ALLOW</string>
+    <string name="tester_allow">Match on %s → ALLOW</string>
+    <string name="tester_block">Match on %1$s → BLOCK (%2$s)</string>
+    <string name="tester_flag_silent">silent notif</string>
+    <string name="tester_flag_shown">notif shown</string>
+    <string name="tester_silence">Match on %s → SILENCE (ringtone muted, call still logged and notified)</string>
 </resources>

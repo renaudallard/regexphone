@@ -69,10 +69,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import it.allard.regexphone.R
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
@@ -113,6 +116,7 @@ fun EditRuleScreen(
     val canSave = patternValid && !saving
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
 
     val dirty = if (existing == null) {
         name.isNotBlank() || pattern.isNotBlank() || action != RuleAction.BLOCK ||
@@ -129,16 +133,21 @@ fun EditRuleScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (existing == null) "New rule" else "Edit rule") },
+                title = {
+                    Text(stringResource(if (existing == null) R.string.new_rule else R.string.edit_rule))
+                },
                 navigationIcon = {
                     IconButton(onClick = requestClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
                     }
                 },
                 actions = {
                     if (existing != null) {
                         IconButton(onClick = { confirmDelete = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.delete))
                         }
                     }
                     TextButton(
@@ -159,11 +168,11 @@ fun EditRuleScreen(
                                     onDone()
                                 } else {
                                     saving = false
-                                    snackbar.showSnackbar("Could not save rule")
+                                    snackbar.showSnackbar(ctx.getString(R.string.save_rule_failed))
                                 }
                             }
                         },
-                    ) { Text("Save") }
+                    ) { Text(stringResource(R.string.save)) }
                 },
             )
         },
@@ -179,7 +188,7 @@ fun EditRuleScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name (optional)") },
+                label = { Text(stringResource(R.string.field_name_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -188,17 +197,17 @@ fun EditRuleScreen(
             OutlinedTextField(
                 value = pattern,
                 onValueChange = { pattern = it },
-                label = { Text("Regex pattern") },
+                label = { Text(stringResource(R.string.field_pattern_label)) },
                 singleLine = true,
                 isError = pattern.isNotBlank() && !patternValid,
                 supportingText = {
                     when {
                         pattern.isBlank() ->
-                            Text("Required. Matched with find(); anchor with ^ and \$ for whole-number match.")
+                            Text(stringResource(R.string.pattern_hint_required))
                         !patternValid ->
-                            Text("Invalid regular expression")
+                            Text(stringResource(R.string.pattern_invalid))
                         pattern != trimmedPattern ->
-                            Text("Leading or trailing whitespace will be trimmed on save.")
+                            Text(stringResource(R.string.pattern_whitespace_hint))
                     }
                 },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
@@ -206,7 +215,7 @@ fun EditRuleScreen(
             )
             Spacer(Modifier.height(12.dp))
 
-            Text("Action", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.action_label), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(4.dp))
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 RuleAction.entries.forEachIndexed { index, value ->
@@ -217,18 +226,22 @@ fun EditRuleScreen(
                             index = index,
                             count = RuleAction.entries.size,
                         ),
-                    ) { Text(value.name) }
+                    ) { Text(actionLabel(value)) }
                 }
             }
             Spacer(Modifier.height(16.dp))
 
-            SwitchRow(label = "Enabled", checked = enabled, onChange = { enabled = it })
+            SwitchRow(
+                label = stringResource(R.string.enabled_label),
+                checked = enabled,
+                onChange = { enabled = it },
+            )
 
             if (action == RuleAction.BLOCK) {
                 Spacer(Modifier.height(8.dp))
                 SwitchRow(
-                    label = "Skip notification",
-                    sublabel = "Hide the missed-call notification when blocked",
+                    label = stringResource(R.string.skip_notification_label),
+                    sublabel = stringResource(R.string.skip_notification_sublabel),
                     checked = skipNotification,
                     onChange = { skipNotification = it },
                 )
@@ -242,14 +255,14 @@ fun EditRuleScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Test against a number",
+                        stringResource(R.string.tester_title),
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = testNumber,
                         onValueChange = { testNumber = it },
-                        label = { Text("Phone number") },
+                        label = { Text(stringResource(R.string.tester_field_label)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
@@ -290,8 +303,8 @@ fun EditRuleScreen(
                     }
                     Text(
                         text = when {
-                            !patternValid -> "Enter a valid pattern to test."
-                            testNumber.isBlank() -> "Enter a number to test."
+                            !patternValid -> stringResource(R.string.tester_need_pattern)
+                            testNumber.isBlank() -> stringResource(R.string.tester_need_number)
                             else -> testerVerdict(preview, editedId)
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -304,16 +317,18 @@ fun EditRuleScreen(
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
-            title = { Text("Discard changes?") },
-            text = { Text("Unsaved changes to this rule will be lost.") },
+            title = { Text(stringResource(R.string.discard_title)) },
+            text = { Text(stringResource(R.string.discard_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDiscard = false
                     onDone()
-                }) { Text("Discard") }
+                }) { Text(stringResource(R.string.discard)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }
+                TextButton(onClick = { confirmDiscard = false }) {
+                    Text(stringResource(R.string.keep_editing))
+                }
             },
         )
     }
@@ -321,8 +336,8 @@ fun EditRuleScreen(
     if (confirmDelete && existing != null) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete rule?") },
-            text = { Text("This will permanently remove the rule.") },
+            title = { Text(stringResource(R.string.delete_dialog_title)) },
+            text = { Text(stringResource(R.string.delete_dialog_body)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
@@ -330,13 +345,13 @@ fun EditRuleScreen(
                         if (RuleRepository.delete(existing.id)) {
                             onDone()
                         } else {
-                            snackbar.showSnackbar("Could not delete rule")
+                            snackbar.showSnackbar(ctx.getString(R.string.delete_failed))
                         }
                     }
-                }) { Text("Delete") }
+                }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -347,22 +362,38 @@ private data class TesterPreview(
     val decision: FilterCallScreeningService.Decision,
 )
 
+@Composable
 private fun testerVerdict(preview: TesterPreview?, editedId: Long): String {
-    if (preview == null) return "Evaluating…"
+    if (preview == null) return stringResource(R.string.tester_evaluating)
     val prefix =
-        if (preview.editedTimedOut) "Pattern took too long, treated as no match. " else ""
+        if (preview.editedTimedOut) stringResource(R.string.tester_timeout_prefix) else ""
+
+    @Composable
     fun byWhom(rule: Rule): String =
-        if (rule.id == editedId) "this rule" else "rule '${rule.name.ifBlank { "(unnamed)" }}'"
+        if (rule.id == editedId) {
+            stringResource(R.string.tester_this_rule)
+        } else {
+            stringResource(
+                R.string.tester_rule_name,
+                rule.name.ifBlank { stringResource(R.string.rule_unnamed) },
+            )
+        }
+
     return prefix + when (val d = preview.decision) {
         is FilterCallScreeningService.Decision.Allow ->
-            if (d.rule == null) "No rule matches → ALLOW"
-            else "Match on ${byWhom(d.rule)} → ALLOW"
-        is FilterCallScreeningService.Decision.Block -> {
-            val flag = if (d.rule.skipNotification) "silent notif" else "notif shown"
-            "Match on ${byWhom(d.rule)} → BLOCK ($flag)"
-        }
+            if (d.rule == null) stringResource(R.string.tester_no_match)
+            else stringResource(R.string.tester_allow, byWhom(d.rule))
+        is FilterCallScreeningService.Decision.Block ->
+            stringResource(
+                R.string.tester_block,
+                byWhom(d.rule),
+                stringResource(
+                    if (d.rule.skipNotification) R.string.tester_flag_silent
+                    else R.string.tester_flag_shown
+                ),
+            )
         is FilterCallScreeningService.Decision.Silence ->
-            "Match on ${byWhom(d.rule)} → SILENCE (ringtone muted, call still logged and notified)"
+            stringResource(R.string.tester_silence, byWhom(d.rule))
     }
 }
 
