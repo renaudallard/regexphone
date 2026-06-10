@@ -27,11 +27,11 @@
 
 package it.allard.regexphone.data
 
-import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
+import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 
 /**
@@ -40,15 +40,15 @@ import java.util.regex.Pattern
  * hang the caller; in the screening service that means missing the Telecom
  * response deadline and letting a blocked call ring through. A match cannot be
  * cancelled once started, so a pattern that misses its deadline is remembered
- * and never run again for the lifetime of the process.
+ * and never run again for the lifetime of the process, and the number of
+ * abandoned matches still spinning in the background is capped.
  */
 object RegexGuard {
     const val DEFAULT_TIMEOUT_MS = 1000L
+    private const val MAX_STRANDED = 4
 
     private val poisoned = ConcurrentHashMap.newKeySet<String>()
-    private val executor = Executors.newCachedThreadPool { runnable ->
-        Thread(runnable, "regex-guard").apply { isDaemon = true }
-    }
+    private val stranded = AtomicInteger(0)
 
     /**
      * Returns whether [pattern] is found in [input], or null when the match
@@ -56,12 +56,26 @@ object RegexGuard {
      * no match.
      */
     fun find(pattern: Pattern, input: String, timeoutMs: Long = DEFAULT_TIMEOUT_MS): Boolean? {
+        if (timeoutMs <= 0) return null
         if (pattern.pattern() in poisoned) return null
-        val future = executor.submit(Callable { pattern.matcher(input).find() })
+        if (stranded.get() >= MAX_STRANDED) return null
+        // 0 = running, 1 = completed in time, 2 = abandoned by the waiter.
+        val state = AtomicInteger(0)
+        val task = FutureTask {
+            try {
+                pattern.matcher(input).find()
+            } finally {
+                if (!state.compareAndSet(0, 1)) stranded.decrementAndGet()
+            }
+        }
+        Thread(task, "regex-guard").apply {
+            isDaemon = true
+            priority = Thread.MIN_PRIORITY
+        }.start()
         return try {
-            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+            task.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
-            future.cancel(true)
+            if (state.compareAndSet(0, 2)) stranded.incrementAndGet()
             poisoned.add(pattern.pattern())
             null
         } catch (_: Exception) {
