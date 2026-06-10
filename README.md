@@ -28,7 +28,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 
 - **Three actions per rule.** `BLOCK` rejects the call; `SILENCE` mutes the ringtone but lets the call still hit the call log and notification shade; `ALLOW` whitelists.
 - **Per-block flag.** Skip the missed-call notification, per rule. Android itself always records blocked calls in the call log; only carrier and system screeners may suppress that, so RegexPhone does not pretend to offer it.
-- **Predictable precedence.** Allow beats block beats silence; otherwise the call is allowed. Order of rules within each action is irrelevant.
+- **Predictable precedence.** Allow beats block beats silence; otherwise the call is allowed. The verdict does not depend on rule order; only the notification flag comes from the first matching block rule.
 - **Live tester.** The edit screen previews, as you type, the decision the service would take for a sample number across all enabled rules, naming the rule that decides.
 - **Import / Export.** Save the full rule set to a JSON file via Storage Access Framework, restore it on another device, or merge two sets together. No permissions needed.
 - **Simple storage.** Rules are JSON in `SharedPreferences`, kept in device-protected storage so screening already works between a reboot and the first unlock. Device-protected storage is encrypted with a device key rather than the lock-screen credential.
