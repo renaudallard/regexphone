@@ -317,10 +317,13 @@ fun RulesListScreen(
             val toImport = pendingRules ?: return@perform
             if (importBusy) return@perform
             importBusy = true
+            // Clear the saved pending state before the commit: if the
+            // activity is recreated or the dialog dismissed while the import
+            // is in flight, a restored dialog would offer the same file
+            // again after it was already applied.
+            clear()
             scope.launch {
                 val ok = RuleRepository.importRules(toImport, replace = replace)
-                if (ok) clear()
-                importBusy = false
                 snackbar.showSnackbar(
                     if (ok) importSummary(ctx.resources, verbPlural, pendingCount, pendingDropped)
                     else ctx.getString(failMsg)
