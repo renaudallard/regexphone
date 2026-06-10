@@ -62,8 +62,8 @@ private fun AppNav() {
     NavHost(navController = nav, startDestination = "rules") {
         composable("rules") {
             RulesListScreen(
-                onAddRule = { nav.navigate("edit?id=-1") },
-                onEditRule = { id -> nav.navigate("edit?id=$id") },
+                onAddRule = { nav.navigate("edit?id=-1") { launchSingleTop = true } },
+                onEditRule = { id -> nav.navigate("edit?id=$id") { launchSingleTop = true } },
             )
         }
         composable(
