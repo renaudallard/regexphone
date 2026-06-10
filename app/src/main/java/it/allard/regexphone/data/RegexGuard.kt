@@ -100,10 +100,13 @@ object RegexGuard {
             thread.priority = Thread.MIN_PRIORITY
             // Only blacklist a run that had its full time allowance; one cut
             // short by the caller's remaining budget proves nothing. When the
-            // set is full, drop the new entry rather than wiping known ones.
+            // set is full, drop the new entry rather than wiping known ones;
+            // the lock keeps the cap exact under concurrent timeouts.
             if (timeoutMs >= DEFAULT_TIMEOUT_MS) {
                 val registry = if (scope == Scope.SCREENING) screeningPoisoned else testerPoisoned
-                if (registry.size < MAX_POISONED) registry.add(key)
+                synchronized(registry) {
+                    if (registry.size < MAX_POISONED) registry.add(key)
+                }
             }
             null
         } catch (_: Exception) {
