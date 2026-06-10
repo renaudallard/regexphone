@@ -103,11 +103,11 @@ gradle wrapper --gradle-version 8.10.2
 ./gradlew assembleDebug
 ```
 
-The APK lands at `app/build/outputs/apk/debug/app-debug.apk`.
+The APK lands at `app/build/outputs/apk/debug/regexphone-X.Y.Z.apk` (the build renames every variant after the version).
 
 ### Release builds
 
-`./gradlew assembleRelease` produces `app/build/outputs/apk/release/app-release.apk`. The build script picks up signing credentials from Gradle properties (typically `~/.gradle/gradle.properties`):
+`./gradlew assembleRelease` produces `app/build/outputs/apk/release/regexphone-X.Y.Z.apk`. The build script picks up signing credentials from Gradle properties (typically `~/.gradle/gradle.properties`):
 
 ```
 REGEXPHONE_KEYSTORE_PATH=/absolute/path/to/keystore.jks
@@ -116,7 +116,7 @@ REGEXPHONE_KEY_ALIAS=regexphone
 REGEXPHONE_KEY_PASSWORD=...
 ```
 
-If `REGEXPHONE_KEYSTORE_PATH` is unset or points to a missing file, `assembleRelease` still works and emits `app-release-unsigned.apk`. Generate a fresh keystore with:
+If `REGEXPHONE_KEYSTORE_PATH` is unset or points to a missing file, `assembleRelease` still works and emits the same `regexphone-X.Y.Z.apk`, just unsigned. Generate a fresh keystore with:
 
 ```sh
 keytool -genkeypair -keystore ~/.keystores/regexphone-release.jks \
