@@ -134,6 +134,20 @@ class DecideTest {
     }
 
     @Test
+    fun anyCandidateNumberFormCanMatch() {
+        val rules = listOf(testRule(pattern = "^\\+3247", action = RuleAction.BLOCK))
+        val d = FilterCallScreeningService.decide(listOf("0470123456", "+32470123456"), rules)
+        assertTrue(d is Decision.Block)
+    }
+
+    @Test
+    fun noCandidateNumberFormMatchingAllows() {
+        val rules = listOf(testRule(pattern = "^\\+44", action = RuleAction.BLOCK))
+        val d = FilterCallScreeningService.decide(listOf("0470123456", "+32470123456"), rules)
+        assertEquals(Decision.Allow, d)
+    }
+
+    @Test
     fun silenceRuleSilencesMatchingNumber() {
         val r = testRule(pattern = "^\\+1", action = RuleAction.SILENCE)
         assertEquals(Decision.Silence, FilterCallScreeningService.decide("+15551234567", listOf(r)))

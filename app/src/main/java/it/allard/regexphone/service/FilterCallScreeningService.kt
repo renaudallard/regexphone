@@ -29,6 +29,8 @@ package it.allard.regexphone.service
 
 import android.telecom.Call
 import android.telecom.CallScreeningService
+import android.telephony.PhoneNumberUtils
+import android.telephony.TelephonyManager
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
@@ -44,7 +46,7 @@ class FilterCallScreeningService : CallScreeningService() {
         }
         RuleRepository.init(applicationContext)
         val number = details.handle?.schemeSpecificPart ?: ""
-        val decision = decide(number, RuleRepository.currentRules())
+        val decision = decide(candidateNumbers(number), RuleRepository.currentRules())
 
         val response = CallResponse.Builder().apply {
             when (decision) {
@@ -62,6 +64,23 @@ class FilterCallScreeningService : CallScreeningService() {
         respondToCall(details, response)
     }
 
+    /**
+     * The handle is whatever the network delivered: depending on the carrier
+     * it may be national format or contain separators. Also match the
+     * separator-stripped form and the E.164 form so rules anchored to an
+     * international prefix keep working.
+     */
+    private fun candidateNumbers(raw: String): List<String> {
+        val candidates = mutableListOf(raw)
+        PhoneNumberUtils.normalizeNumber(raw)?.takeIf { it.isNotEmpty() }?.let { candidates.add(it) }
+        val telephony = getSystemService(TelephonyManager::class.java)
+        val country = telephony?.networkCountryIso?.ifEmpty { telephony.simCountryIso }
+        if (!country.isNullOrEmpty()) {
+            PhoneNumberUtils.formatNumberToE164(raw, country.uppercase())?.let { candidates.add(it) }
+        }
+        return candidates.distinct()
+    }
+
     sealed interface Decision {
         data object Allow : Decision
         data class Block(val rule: Rule) : Decision
@@ -69,10 +88,15 @@ class FilterCallScreeningService : CallScreeningService() {
     }
 
     companion object {
-        fun decide(number: String, rules: List<Rule>): Decision {
+        fun decide(number: String, rules: List<Rule>): Decision =
+            decide(listOf(number), rules)
+
+        fun decide(numbers: List<String>, rules: List<Rule>): Decision {
             val active = rules.filter { it.enabled }
             fun firstMatching(action: RuleAction): Rule? =
-                active.firstOrNull { it.action == action && it.matches(number) }
+                active.firstOrNull { rule ->
+                    rule.action == action && numbers.any { rule.matches(it) }
+                }
 
             if (firstMatching(RuleAction.ALLOW) != null) return Decision.Allow
             firstMatching(RuleAction.BLOCK)?.let { return Decision.Block(it) }

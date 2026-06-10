@@ -49,6 +49,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 | Aspect | Behaviour |
 | --- | --- |
 | Source | `Call.Details.handle.schemeSpecificPart`, URI-decoded |
+| Number forms | each rule is tried against the string as delivered by the carrier, its separator-stripped form, and its E.164 form (derived from the current network or SIM country); the rule matches if any form matches |
 | Hidden / withheld numbers | match as the empty string; block them with `^$` |
 | Match function | `Matcher.find()` (substring); anchor with `^` and `$` for whole-number match |
 | Invalid regex | never matches; the editor refuses to save it |
