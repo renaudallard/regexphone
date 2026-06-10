@@ -54,8 +54,16 @@ object RuleRepository {
     @Synchronized
     fun init(context: Context) {
         if (initialized) return
-        prefs = context.applicationContext
-            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        // Device-protected storage is readable before the first unlock, so
+        // the screening service can filter calls right after a reboot. Fall
+        // back to credential-encrypted storage if the migration fails, to
+        // avoid losing existing rules.
+        val appContext = context.applicationContext
+        val deviceContext = appContext.createDeviceProtectedStorageContext()
+        val storageContext =
+            if (deviceContext.moveSharedPreferencesFrom(appContext, PREFS)) deviceContext
+            else appContext
+        prefs = storageContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val loaded = load()
         lastIssuedId = maxOf(
             prefs.getLong(KEY_LAST_ID, 0L),

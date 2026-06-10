@@ -31,7 +31,7 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 - **Predictable precedence.** Allow beats block beats silence; otherwise the call is allowed. Order of rules within each action is irrelevant.
 - **Live tester.** The edit screen previews the verdict and which flags will apply for a sample number as you type.
 - **Import / Export.** Save the full rule set to a JSON file via Storage Access Framework, restore it on another device, or merge two sets together. No permissions needed.
-- **Simple storage.** Rules are JSON in `SharedPreferences`, read synchronously inside the screening service so there is no risk of an ANR.
+- **Simple storage.** Rules are JSON in `SharedPreferences`, kept in device-protected storage so screening already works between a reboot and the first unlock. Device-protected storage is encrypted with a device key rather than the lock-screen credential.
 - **No background services, no contacts permission, no network access.**
 
 ## Screenshots

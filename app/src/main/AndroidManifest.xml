@@ -24,6 +24,7 @@
         <service
             android:name=".service.FilterCallScreeningService"
             android:permission="android.permission.BIND_SCREENING_SERVICE"
+            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.telecom.CallScreeningService" />
