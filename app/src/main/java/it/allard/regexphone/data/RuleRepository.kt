@@ -29,6 +29,7 @@ package it.allard.regexphone.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.UserManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,14 +58,21 @@ object RuleRepository {
     fun init(context: Context) {
         if (initialized) return
         // Device-protected storage is readable before the first unlock, so
-        // the screening service can filter calls right after a reboot. Fall
-        // back to credential-encrypted storage if the migration fails, to
-        // avoid losing existing rules.
+        // the screening service can filter calls right after a reboot.
+        // Before the unlock the credential-encrypted source is invisible and
+        // moveSharedPreferencesFrom would falsely report success, latching an
+        // empty store and later clobbering it with the stale source. Serve
+        // whatever device-protected data exists and retry on the next init
+        // after the unlock. Fall back to credential-encrypted storage if the
+        // migration itself fails, to avoid losing existing rules.
         val appContext = context.applicationContext
         val deviceContext = appContext.createDeviceProtectedStorageContext()
-        val storageContext =
-            if (deviceContext.moveSharedPreferencesFrom(appContext, PREFS)) deviceContext
-            else appContext
+        val unlocked = appContext.getSystemService(UserManager::class.java)?.isUserUnlocked == true
+        val storageContext = when {
+            !unlocked -> deviceContext
+            deviceContext.moveSharedPreferencesFrom(appContext, PREFS) -> deviceContext
+            else -> appContext
+        }
         prefs = storageContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val loaded = load()
         lastIssuedId = maxOf(
@@ -72,7 +80,7 @@ object RuleRepository {
             loaded.maxOfOrNull { it.id } ?: 0L,
         )
         _rules.value = loaded
-        initialized = true
+        initialized = unlocked
     }
 
     fun currentRules(): List<Rule> = _rules.value
