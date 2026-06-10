@@ -42,6 +42,11 @@ object RuleRepository {
     private const val KEY_LAST_ID = "last_id"
     private const val KEY_RULES_UNREADABLE = "rules_unreadable"
 
+    // Volatile for the unsynchronized fast path in init(): onScreenCall runs
+    // init() on the main thread for every call, and taking the monitor there
+    // would make screening wait out any preferences commit a persist holds
+    // the monitor for.
+    @Volatile
     private var initialized = false
 
     private lateinit var prefs: SharedPreferences
@@ -54,8 +59,13 @@ object RuleRepository {
     private val _storageWarning = MutableStateFlow(false)
     val storageWarning: StateFlow<Boolean> = _storageWarning.asStateFlow()
 
-    @Synchronized
     fun init(context: Context) {
+        if (initialized) return
+        initLocked(context)
+    }
+
+    @Synchronized
+    private fun initLocked(context: Context) {
         if (initialized) return
         // Device-protected storage is readable before the first unlock, so
         // the screening service can filter calls right after a reboot.
