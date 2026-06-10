@@ -312,11 +312,15 @@ fun RulesListScreen(
                 RuleIO.decode(pendingText).getOrElse { emptyList() }
             }
         }
+        var importBusy by remember { mutableStateOf(false) }
         val perform = perform@{ replace: Boolean, verbPlural: Int, failMsg: Int ->
             val toImport = pendingRules ?: return@perform
+            if (importBusy) return@perform
+            importBusy = true
             scope.launch {
                 val ok = RuleRepository.importRules(toImport, replace = replace)
                 if (ok) clear()
+                importBusy = false
                 snackbar.showSnackbar(
                     if (ok) importSummary(ctx.resources, verbPlural, pendingCount, pendingDropped)
                     else ctx.getString(failMsg)
@@ -336,10 +340,10 @@ fun RulesListScreen(
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(enabled = pendingRules != null, onClick = {
+                    TextButton(enabled = pendingRules != null && !importBusy, onClick = {
                         perform(false, R.plurals.import_merged, R.string.import_merge_failed)
                     }) { Text(stringResource(R.string.merge)) }
-                    TextButton(enabled = pendingRules != null, onClick = {
+                    TextButton(enabled = pendingRules != null && !importBusy, onClick = {
                         perform(true, R.plurals.import_replaced, R.string.import_replace_failed)
                     }) { Text(stringResource(R.string.replace)) }
                 }
