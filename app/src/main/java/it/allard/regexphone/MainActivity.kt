@@ -32,7 +32,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -77,10 +76,11 @@ private fun AppNav() {
             EditRuleScreen(
                 ruleId = id.takeIf { it >= 0 },
                 onDone = {
-                    // The entry leaves RESUMED as soon as the first pop
-                    // starts, so a second tap cannot pop the start
-                    // destination and blank the NavHost.
-                    if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                    // The controller state updates synchronously on the first
+                    // pop, so a repeated tap cannot pop the start destination
+                    // and blank the NavHost. Unlike a lifecycle check, this
+                    // also works during transitions and while backgrounded.
+                    if (nav.currentBackStackEntry == backStackEntry) {
                         nav.popBackStack()
                     }
                 },
