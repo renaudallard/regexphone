@@ -107,6 +107,10 @@ fun EditRuleScreen(
     var enabled by rememberSaveable { mutableStateOf(existing?.enabled ?: true) }
     var skipNotification by rememberSaveable { mutableStateOf(existing?.skipNotification ?: true) }
     var testNumber by rememberSaveable { mutableStateOf("") }
+    // The id a new rule will be saved under, reserved on the first save and
+    // kept across recreation so a save torn apart by a configuration change
+    // overwrites its own first copy instead of adding a duplicate.
+    var assignedId by rememberSaveable { mutableStateOf(existing?.id ?: -1L) }
 
     val trimmedPattern = pattern.trim()
     val patternValid = remember(trimmedPattern) {
@@ -157,8 +161,9 @@ fun EditRuleScreen(
                         onClick = onSave@{
                             if (saving) return@onSave
                             saving = true
+                            if (assignedId < 0) assignedId = RuleRepository.nextId()
                             val rule = Rule(
-                                id = existing?.id ?: RuleRepository.nextId(),
+                                id = assignedId,
                                 name = name.trim(),
                                 pattern = trimmedPattern,
                                 action = action,
@@ -166,10 +171,11 @@ fun EditRuleScreen(
                                 skipNotification = skipNotification,
                             )
                             scope.launch {
-                                if (RuleRepository.save(rule)) {
+                                val ok = RuleRepository.save(rule)
+                                saving = false
+                                if (ok) {
                                     onDone()
                                 } else {
-                                    saving = false
                                     snackbar.showSnackbar(ctx.getString(R.string.save_rule_failed))
                                 }
                             }
