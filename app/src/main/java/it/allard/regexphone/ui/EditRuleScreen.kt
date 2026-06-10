@@ -27,6 +27,7 @@
 
 package it.allard.regexphone.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -108,16 +109,29 @@ fun EditRuleScreen(
     }
     var saving by remember { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     val canSave = patternValid && !saving
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val dirty = if (existing == null) {
+        name.isNotBlank() || pattern.isNotBlank() || action != RuleAction.BLOCK ||
+            !enabled || !skipNotification
+    } else {
+        name != existing.name || pattern != existing.pattern || action != existing.action ||
+            enabled != existing.enabled || skipNotification != existing.skipNotification
+    }
+    val requestClose = {
+        if (dirty) confirmDiscard = true else onDone()
+    }
+    BackHandler(enabled = dirty) { confirmDiscard = true }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (existing == null) "New rule" else "Edit rule") },
                 navigationIcon = {
-                    IconButton(onClick = onDone) {
+                    IconButton(onClick = requestClose) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -285,6 +299,23 @@ fun EditRuleScreen(
                 }
             }
         }
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard changes?") },
+            text = { Text("Unsaved changes to this rule will be lost.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDiscard = false
+                    onDone()
+                }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") }
+            },
+        )
     }
 
     if (confirmDelete && existing != null) {
