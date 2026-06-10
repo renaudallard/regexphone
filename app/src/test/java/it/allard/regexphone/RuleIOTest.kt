@@ -70,6 +70,41 @@ class RuleIOTest {
     }
 
     @Test
+    fun decodeWithSummaryDropsInvalidAndBlankPatterns() {
+        val rules = listOf(
+            testRule(1, "^\\+1"),
+            testRule(2, "["),
+            testRule(3, " "),
+            testRule(4, "^\\+44"),
+        )
+        val outcome = RuleIO.decodeWithSummary(RuleIO.encode(rules)).getOrThrow()
+        assertEquals(listOf(1L, 4L), outcome.rules.map { it.id })
+        assertEquals(2, outcome.dropped)
+    }
+
+    @Test
+    fun decodeWithSummaryKeepsEverythingValid() {
+        val rules = listOf(testRule(1, "^\\+1"), testRule(2, "^\\+44"))
+        val outcome = RuleIO.decodeWithSummary(RuleIO.encode(rules)).getOrThrow()
+        assertEquals(rules, outcome.rules)
+        assertEquals(0, outcome.dropped)
+    }
+
+    @Test
+    fun reassignIdsRenumbersFromStart() {
+        val rules = listOf(testRule(99, "a"), testRule(7, "b"), testRule(7, "c"))
+        val reassigned = RuleIO.reassignIds(rules, startId = 10L)
+        assertEquals(listOf(10L, 11L, 12L), reassigned.map { it.id })
+        assertEquals(listOf("a", "b", "c"), reassigned.map { it.pattern })
+    }
+
+    @Test
+    fun reassignIdsDefaultsToOne() {
+        val reassigned = RuleIO.reassignIds(listOf(testRule(42, "x")))
+        assertEquals(listOf(1L), reassigned.map { it.id })
+    }
+
+    @Test
     fun salvageRecoversValidElementsFromDamagedArray() {
         val good = testRule(1, "^\\+1")
         val text = """
