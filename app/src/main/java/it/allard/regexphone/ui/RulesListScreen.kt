@@ -122,7 +122,9 @@ fun RulesListScreen(
     val exportLauncher = rememberLauncherForActivityResult(CreateDocument("application/json")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         val ok = runCatching {
-            val stream = ctx.contentResolver.openOutputStream(uri)
+            // "wt" truncates the document; plain "w" leaves trailing bytes
+            // on providers that do not truncate, corrupting the export.
+            val stream = ctx.contentResolver.openOutputStream(uri, "wt")
                 ?: error("openOutputStream returned null")
             stream.bufferedWriter().use { it.write(RuleRepository.exportJson()) }
         }.isSuccess
