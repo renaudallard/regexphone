@@ -61,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,7 +76,9 @@ import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
 import it.allard.regexphone.data.isValidRegex
 import it.allard.regexphone.data.regexFinds
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -244,14 +247,19 @@ fun EditRuleScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    val patternMatches = remember(trimmedPattern, testNumber, patternValid) {
-                        patternValid && regexFinds(trimmedPattern, testNumber)
+                    val patternMatches by produceState<Boolean?>(
+                        initialValue = false,
+                        trimmedPattern, testNumber, patternValid,
+                    ) {
+                        value = if (!patternValid) false
+                        else withContext(Dispatchers.Default) { regexFinds(trimmedPattern, testNumber) }
                     }
                     Text(
                         text = when {
                             !patternValid -> "Enter a valid pattern to test."
                             testNumber.isBlank() -> "Enter a number to test."
-                            !patternMatches -> "No match → ALLOW"
+                            patternMatches == null -> "Pattern took too long → ALLOW (treated as no match)"
+                            patternMatches == false -> "No match → ALLOW"
                             !enabled -> "Match, but rule is disabled → ALLOW"
                             action == RuleAction.ALLOW -> "Match → ALLOW"
                             action == RuleAction.SILENCE -> "Match → SILENCE (ringtone muted, call still logged and notified)"

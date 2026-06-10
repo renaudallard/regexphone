@@ -56,5 +56,11 @@ data class Rule(
 fun isValidRegex(pattern: String): Boolean =
     runCatching { Pattern.compile(pattern) }.isSuccess
 
-fun regexFinds(pattern: String, input: String): Boolean =
-    runCatching { Pattern.compile(pattern).matcher(input).find() }.getOrDefault(false)
+/**
+ * Returns whether [pattern] is found in [input], false for an invalid
+ * pattern, or null when the match timed out (see [RegexGuard]).
+ */
+fun regexFinds(pattern: String, input: String): Boolean? {
+    val compiled = runCatching { Pattern.compile(pattern) }.getOrNull() ?: return false
+    return RegexGuard.find(compiled, input)
+}
