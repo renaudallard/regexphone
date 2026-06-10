@@ -36,6 +36,12 @@ import it.allard.regexphone.data.RuleRepository
 class FilterCallScreeningService : CallScreeningService() {
 
     override fun onScreenCall(details: Call.Details) {
+        // The framework also delivers outgoing calls to the screening role
+        // holder but ignores any response to them, so skip rule evaluation.
+        if (details.callDirection != Call.Details.DIRECTION_INCOMING) {
+            respondToCall(details, CallResponse.Builder().build())
+            return
+        }
         RuleRepository.init(applicationContext)
         val number = details.handle?.schemeSpecificPart ?: ""
         val decision = decide(number, RuleRepository.currentRules())
