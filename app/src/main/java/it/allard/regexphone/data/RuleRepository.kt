@@ -29,9 +29,11 @@ package it.allard.regexphone.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 object RuleRepository {
     private const val PREFS = "regexphone_prefs"
@@ -75,25 +77,25 @@ object RuleRepository {
 
     fun currentRules(): List<Rule> = _rules.value
 
-    fun save(rule: Rule): Boolean = persist { current, _ ->
+    suspend fun save(rule: Rule): Boolean = persist { current, _ ->
         current.toMutableList().also { list ->
             val idx = list.indexOfFirst { it.id == rule.id }
             if (idx >= 0) list[idx] = rule else list.add(rule)
         }
     }
 
-    fun delete(id: Long): Boolean = persist { current, _ ->
+    suspend fun delete(id: Long): Boolean = persist { current, _ ->
         current.filter { it.id != id }
     }
 
-    fun restoreAt(rule: Rule, index: Int): Boolean = persist { current, _ ->
+    suspend fun restoreAt(rule: Rule, index: Int): Boolean = persist { current, _ ->
         if (current.any { it.id == rule.id }) current
         else current.toMutableList().also {
             it.add(index.coerceIn(0, it.size), rule)
         }
     }
 
-    fun toggleEnabled(id: Long): Boolean = persist { current, _ ->
+    suspend fun toggleEnabled(id: Long): Boolean = persist { current, _ ->
         current.map { if (it.id == id) it.copy(enabled = !it.enabled) else it }
     }
 
@@ -111,7 +113,7 @@ object RuleRepository {
 
     fun exportJson(): String = RuleIO.encode(_rules.value)
 
-    fun importRules(imported: List<Rule>, replace: Boolean): Boolean =
+    suspend fun importRules(imported: List<Rule>, replace: Boolean): Boolean =
         persist { current, lastId ->
             if (replace) {
                 RuleIO.reassignIds(imported, lastId + 1L)
@@ -120,8 +122,13 @@ object RuleRepository {
             }
         }
 
+    // The synchronous commit() fsyncs the preferences file, so keep it off
+    // the main thread, which the screening service shares.
+    private suspend fun persist(transform: (current: List<Rule>, lastId: Long) -> List<Rule>): Boolean =
+        withContext(Dispatchers.IO) { persistLocked(transform) }
+
     @Synchronized
-    private fun persist(transform: (current: List<Rule>, lastId: Long) -> List<Rule>): Boolean {
+    private fun persistLocked(transform: (current: List<Rule>, lastId: Long) -> List<Rule>): Boolean {
         val newList = transform(_rules.value, lastIssuedId)
         val newMax = newList.maxOfOrNull { it.id } ?: 0L
         val nextLastId = maxOf(newMax, lastIssuedId)

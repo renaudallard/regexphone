@@ -159,8 +159,8 @@ fun RulesListScreen(
                         }
                     }
                     rules.isEmpty() -> {
-                        val ok = RuleRepository.importRules(outcome.rules, replace = true)
                         scope.launch {
+                            val ok = RuleRepository.importRules(outcome.rules, replace = true)
                             snackbar.showSnackbar(
                                 if (ok) importSummary("Imported", outcome.rules.size, outcome.dropped)
                                 else "Could not save imported rules"
@@ -237,19 +237,21 @@ fun RulesListScreen(
                         RuleRow(
                             rule = rule,
                             onToggle = {
-                                if (!RuleRepository.toggleEnabled(rule.id)) {
-                                    scope.launch { snackbar.showSnackbar("Could not save change") }
+                                scope.launch {
+                                    if (!RuleRepository.toggleEnabled(rule.id)) {
+                                        snackbar.showSnackbar("Could not save change")
+                                    }
                                 }
                             },
                             onEdit = { onEditRule(rule.id) },
-                            onDelete = onDeleteCb@{
+                            onDelete = {
                                 val deleted = rule
                                 val originalIndex = rules.indexOf(rule)
-                                if (!RuleRepository.delete(deleted.id)) {
-                                    scope.launch { snackbar.showSnackbar("Could not delete rule") }
-                                    return@onDeleteCb
-                                }
                                 scope.launch {
+                                    if (!RuleRepository.delete(deleted.id)) {
+                                        snackbar.showSnackbar("Could not delete rule")
+                                        return@launch
+                                    }
                                     val result = snackbar.showSnackbar(
                                         message = "Rule deleted",
                                         actionLabel = "Undo",
@@ -284,9 +286,9 @@ fun RulesListScreen(
             RuleIO.decode(pendingText).getOrElse { emptyList() }
         }
         val perform = { replace: Boolean, verb: String, failMsg: String ->
-            val ok = RuleRepository.importRules(pendingRules, replace = replace)
-            if (ok) clear()
             scope.launch {
+                val ok = RuleRepository.importRules(pendingRules, replace = replace)
+                if (ok) clear()
                 snackbar.showSnackbar(
                     if (ok) importSummary(verb, pendingCount, pendingDropped) else failMsg
                 )

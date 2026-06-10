@@ -138,11 +138,13 @@ fun EditRuleScreen(
                                 enabled = enabled,
                                 skipNotification = skipNotification,
                             )
-                            if (RuleRepository.save(rule)) {
-                                onDone()
-                            } else {
-                                saving = false
-                                scope.launch { snackbar.showSnackbar("Could not save rule") }
+                            scope.launch {
+                                if (RuleRepository.save(rule)) {
+                                    onDone()
+                                } else {
+                                    saving = false
+                                    snackbar.showSnackbar("Could not save rule")
+                                }
                             }
                         },
                     ) { Text("Save") }
@@ -274,10 +276,12 @@ fun EditRuleScreen(
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
-                    if (RuleRepository.delete(existing.id)) {
-                        onDone()
-                    } else {
-                        scope.launch { snackbar.showSnackbar("Could not delete rule") }
+                    scope.launch {
+                        if (RuleRepository.delete(existing.id)) {
+                            onDone()
+                        } else {
+                            snackbar.showSnackbar("Could not delete rule")
+                        }
                     }
                 }) { Text("Delete") }
             },
