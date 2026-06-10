@@ -100,7 +100,9 @@ import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleIO
 import it.allard.regexphone.data.RuleRepository
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -322,8 +324,14 @@ fun RulesListScreen(
             // is in flight, a restored dialog would offer the same file
             // again after it was already applied.
             clear()
-            scope.launch {
-                val ok = RuleRepository.importRules(toImport, replace = replace)
+            // Undispatched start enters the non-cancellable block before the
+            // composition scope can be cancelled, so a confirmed import is
+            // committed even if the screen is disposed right after the tap.
+            // Only the snackbar is lost in that case.
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                val ok = withContext(NonCancellable) {
+                    RuleRepository.importRules(toImport, replace = replace)
+                }
                 snackbar.showSnackbar(
                     if (ok) importSummary(ctx.resources, verbPlural, pendingCount, pendingDropped)
                     else ctx.getString(failMsg)
