@@ -46,7 +46,10 @@ class FilterCallScreeningService : CallScreeningService() {
         }
         RuleRepository.init(applicationContext)
         val number = details.handle?.schemeSpecificPart ?: ""
-        val decision = decide(candidateNumbers(number), RuleRepository.currentRules())
+        val decision = decide(
+            candidateNumbers(number, telephonyCountryIso()),
+            RuleRepository.currentRules(),
+        )
 
         val response = CallResponse.Builder().apply {
             when (decision) {
@@ -65,21 +68,9 @@ class FilterCallScreeningService : CallScreeningService() {
         respondToCall(details, response)
     }
 
-    /**
-     * The handle is whatever the network delivered: depending on the carrier
-     * it may be national format or contain separators. Also match the
-     * separator-stripped form and the E.164 form so rules anchored to an
-     * international prefix keep working.
-     */
-    private fun candidateNumbers(raw: String): List<String> {
-        val candidates = mutableListOf(raw)
-        PhoneNumberUtils.normalizeNumber(raw)?.takeIf { it.isNotEmpty() }?.let { candidates.add(it) }
+    private fun telephonyCountryIso(): String? {
         val telephony = getSystemService(TelephonyManager::class.java)
-        val country = telephony?.networkCountryIso?.ifEmpty { telephony.simCountryIso }
-        if (!country.isNullOrEmpty()) {
-            PhoneNumberUtils.formatNumberToE164(raw, country.uppercase())?.let { candidates.add(it) }
-        }
-        return candidates.distinct()
+        return telephony?.networkCountryIso?.ifEmpty { telephony.simCountryIso }
     }
 
     sealed interface Decision {
@@ -94,6 +85,22 @@ class FilterCallScreeningService : CallScreeningService() {
         // several fresh patterns each exhaust their individual watchdog
         // timeout on the first call after process start.
         private const val TOTAL_BUDGET_MS = 3500L
+
+        /**
+         * The handle is whatever the network delivered: depending on the
+         * carrier it may be national format or contain separators. Also match
+         * the separator-stripped form and the E.164 form so rules anchored to
+         * an international prefix keep working. The live tester uses the same
+         * expansion so its preview agrees with the service.
+         */
+        fun candidateNumbers(raw: String, countryIso: String?): List<String> {
+            val candidates = mutableListOf(raw)
+            PhoneNumberUtils.normalizeNumber(raw)?.takeIf { it.isNotEmpty() }?.let { candidates.add(it) }
+            if (!countryIso.isNullOrEmpty()) {
+                PhoneNumberUtils.formatNumberToE164(raw, countryIso.uppercase())?.let { candidates.add(it) }
+            }
+            return candidates.distinct()
+        }
 
         fun decide(number: String, rules: List<Rule>): Decision =
             decide(listOf(number), rules)

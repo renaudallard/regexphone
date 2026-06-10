@@ -27,6 +27,7 @@
 
 package it.allard.regexphone.ui
 
+import android.telephony.TelephonyManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,6 +84,7 @@ import it.allard.regexphone.data.isValidRegex
 import it.allard.regexphone.data.regexFinds
 import it.allard.regexphone.service.FilterCallScreeningService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -274,31 +276,44 @@ fun EditRuleScreen(
                     // the rule being edited.
                     val allRules by RuleRepository.rules.collectAsStateWithLifecycle()
                     val editedId = existing?.id ?: 0L
+                    val countryIso = remember {
+                        ctx.getSystemService(TelephonyManager::class.java)?.let { telephony ->
+                            telephony.networkCountryIso?.ifEmpty { telephony.simCountryIso }
+                        }
+                    }
                     val preview by produceState<TesterPreview?>(
                         initialValue = null,
                         trimmedPattern, testNumber, patternValid, name,
                         action, enabled, skipNotification, allRules,
                     ) {
                         value = if (!patternValid || testNumber.isBlank()) null
-                        else withContext(Dispatchers.Default) {
-                            val edited = Rule(
-                                id = editedId,
-                                name = name.trim(),
-                                pattern = trimmedPattern,
-                                action = action,
-                                enabled = enabled,
-                                skipNotification = skipNotification,
-                            )
-                            val rules =
-                                if (allRules.any { it.id == editedId }) {
-                                    allRules.map { if (it.id == editedId) edited else it }
-                                } else {
-                                    allRules + edited
-                                }
-                            TesterPreview(
-                                editedTimedOut = regexFinds(trimmedPattern, testNumber) == null,
-                                decision = FilterCallScreeningService.decide(testNumber, rules),
-                            )
+                        else {
+                            // Debounce so intermediate keystrokes do not each
+                            // burn a watchdog evaluation.
+                            delay(250)
+                            withContext(Dispatchers.Default) {
+                                val edited = Rule(
+                                    id = editedId,
+                                    name = name.trim(),
+                                    pattern = trimmedPattern,
+                                    action = action,
+                                    enabled = enabled,
+                                    skipNotification = skipNotification,
+                                )
+                                val rules =
+                                    if (allRules.any { it.id == editedId }) {
+                                        allRules.map { if (it.id == editedId) edited else it }
+                                    } else {
+                                        allRules + edited
+                                    }
+                                TesterPreview(
+                                    editedTimedOut = regexFinds(trimmedPattern, testNumber) == null,
+                                    decision = FilterCallScreeningService.decide(
+                                        FilterCallScreeningService.candidateNumbers(testNumber, countryIso),
+                                        rules,
+                                    ),
+                                )
+                            }
                         }
                     }
                     Text(
