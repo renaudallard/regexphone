@@ -155,6 +155,16 @@ unzip gradle-8.10.2-bin.zip -d ~/Android
 
 </details>
 
+### Play Store bundle (AAB)
+
+Google Play distributes an Android App Bundle (`.aab`), not an APK. Build it with:
+
+```sh
+./gradlew bundleRelease
+```
+
+The bundle lands at `app/build/outputs/bundle/release/app-release.aab`, signed with the same `REGEXPHONE_*` credentials as the APK. The `outputFileName` rename only applies to APK outputs, so the bundle keeps its default name. Under Play App Signing this keystore acts as the upload key; Google manages the final distribution signing key.
+
 ## Project layout
 
 ```
