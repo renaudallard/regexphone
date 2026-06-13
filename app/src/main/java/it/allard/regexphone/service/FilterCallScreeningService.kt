@@ -111,7 +111,10 @@ class FilterCallScreeningService : CallScreeningService() {
          */
         fun countryIso(telephony: TelephonyManager?): String? {
             if (telephony == null) return null
-            return telephony.networkCountryIso?.ifEmpty { telephony.simCountryIso }
+            // A null network ISO means the same as an empty one here, so fall
+            // back to the SIM country in both cases. Guarding only for empty
+            // would skip the fallback when the platform returns null.
+            return telephony.networkCountryIso?.takeIf { it.isNotEmpty() } ?: telephony.simCountryIso
         }
 
         fun decide(number: String, rules: List<Rule>): Decision =
