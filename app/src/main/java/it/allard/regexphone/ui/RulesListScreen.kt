@@ -532,18 +532,19 @@ internal fun actionLabel(action: RuleAction): String = stringResource(
 
 @Composable
 private fun ActionChip(action: RuleAction) {
-    val color = when (action) {
-        RuleAction.BLOCK -> MaterialTheme.colorScheme.errorContainer
-        RuleAction.SILENCE -> MaterialTheme.colorScheme.surfaceVariant
-        RuleAction.ALLOW -> MaterialTheme.colorScheme.tertiaryContainer
+    val scheme = MaterialTheme.colorScheme
+    val (container, onContainer) = when (action) {
+        RuleAction.BLOCK -> scheme.errorContainer to scheme.onErrorContainer
+        RuleAction.SILENCE -> scheme.surfaceVariant to scheme.onSurfaceVariant
+        RuleAction.ALLOW -> scheme.tertiaryContainer to scheme.onTertiaryContainer
     }
     AssistChip(
         onClick = {},
         enabled = false,
         label = { Text(actionLabel(action)) },
         colors = AssistChipDefaults.assistChipColors(
-            disabledContainerColor = color,
-            disabledLabelColor = MaterialTheme.colorScheme.onSurface,
+            disabledContainerColor = container,
+            disabledLabelColor = onContainer,
         ),
     )
 }
