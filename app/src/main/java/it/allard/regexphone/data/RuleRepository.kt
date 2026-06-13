@@ -126,9 +126,10 @@ object RuleRepository {
         // death in saved state, but the rule's own commit may not have run
         // yet; without persisting here a restart would reload the old last_id,
         // reissue this id to a different rule, and let the restored editor
-        // overwrite it. commit() gives the durability the saved state relies
-        // on, and runs on a save tap rather than the screening path.
-        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).commit()
+        // overwrite it. apply() keeps the fsync off the main thread this runs
+        // on; QueuedWork flushes pending writes when the app is backgrounded,
+        // which is when a system kill happens, so the reservation survives.
+        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).apply()
         return lastIssuedId
     }
 
