@@ -168,9 +168,17 @@ object RuleRepository {
             // overwrite it, then recover whatever still parses, renumbering so
             // a duplicated id from the damaged payload cannot drop a distinct
             // rule the way distinctBy would.
-            prefs.edit().putString(KEY_RULES_UNREADABLE, text).commit()
+            preserveUnreadable(text)
             _storageWarning.value = true
             RuleIO.reassignIds(RuleIO.salvage(text))
         }
+    }
+
+    // Persist the unreadable payload aside so a later save cannot overwrite
+    // it. Keep the first corrupt copy: a second corruption must not clobber
+    // the original that was set aside for recovery.
+    private fun preserveUnreadable(text: String) {
+        if (prefs.contains(KEY_RULES_UNREADABLE)) return
+        prefs.edit().putString(KEY_RULES_UNREADABLE, text).commit()
     }
 }
