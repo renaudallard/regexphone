@@ -353,7 +353,8 @@ fun RulesListScreen(
                 Column {
                     Text(
                         stringResource(
-                            R.string.import_dialog_text,
+                            if (mergeWouldExceed) R.string.import_dialog_replace_only
+                            else R.string.import_dialog_text,
                             rules.size, pendingCount, dropSuffix,
                         )
                     )

@@ -65,6 +65,7 @@
     </plurals>
     <string name="import_skipped_suffix">" (%d skipped)"</string>
     <string name="import_dialog_text">You have %1$d existing rule(s) and the file contains %2$d%3$s. Replace everything, or merge?</string>
+    <string name="import_dialog_replace_only">You have %1$d existing rule(s) and the file contains %2$d%3$s. Replace everything?</string>
     <string name="import_dialog_skipped">" (%d invalid will be skipped)"</string>
     <string name="merge">Merge</string>
     <string name="replace">Replace</string>
