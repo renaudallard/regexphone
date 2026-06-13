@@ -139,6 +139,25 @@ class RuleIOTest {
     }
 
     @Test
+    fun salvageKeepsRulesWithDuplicateIdsForReassignment() {
+        val text = """
+            [
+                {"id":1,"name":"a","pattern":"^\\+1","action":"BLOCK","enabled":true,"skipNotification":true},
+                {"id":1,"name":"b","pattern":"^\\+2","action":"BLOCK","enabled":true,"skipNotification":true},
+                {"name":"missing required fields"}
+            ]
+        """.trimIndent()
+        // decode fails on the missing-fields element; salvage must recover both
+        // id-1 rules without collapsing them, so reassignIds can make the ids
+        // unique without dropping a distinct rule.
+        val salvaged = RuleIO.salvage(text)
+        assertEquals(listOf("^\\+1", "^\\+2"), salvaged.map { it.pattern })
+        val unique = RuleIO.reassignIds(salvaged)
+        assertEquals(listOf(1L, 2L), unique.map { it.id })
+        assertEquals(listOf("^\\+1", "^\\+2"), unique.map { it.pattern })
+    }
+
+    @Test
     fun mergeAssignsFreshIds() {
         val current = listOf(testRule(1, "a"), testRule(2, "b"))
         val incoming = listOf(testRule(1, "c"), testRule(2, "d"))

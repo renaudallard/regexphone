@@ -165,10 +165,12 @@ object RuleRepository {
         val text = prefs.getString(KEY_RULES, null) ?: return emptyList()
         return RuleIO.decode(text).getOrElse {
             // Keep the unreadable payload aside so the next save cannot
-            // overwrite it, then recover whatever still parses.
+            // overwrite it, then recover whatever still parses, renumbering so
+            // a duplicated id from the damaged payload cannot drop a distinct
+            // rule the way distinctBy would.
             prefs.edit().putString(KEY_RULES_UNREADABLE, text).commit()
             _storageWarning.value = true
-            RuleIO.salvage(text).distinctBy { rule -> rule.id }
+            RuleIO.reassignIds(RuleIO.salvage(text))
         }
     }
 }
