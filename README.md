@@ -92,6 +92,14 @@ On first launch tap **Set as default** in the status card and accept the system 
 | Android SDK | Platform 35 and Build-tools 35.0.x |
 | Gradle | 8.10.2 (via wrapper) |
 
+Use JDK 17 or 21. Gradle 8.10.2's embedded Kotlin compiler cannot parse the JDK 25 version string and fails with `IllegalArgumentException: 25.0.3`. If your system default is newer, point the build at a supported JDK:
+
+```sh
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64 ./gradlew ...
+```
+
+or set `org.gradle.java.home` in `~/.gradle/gradle.properties`.
+
 ```sh
 git clone https://github.com/renaudallard/regexphone.git
 cd regexphone
