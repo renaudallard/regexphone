@@ -163,15 +163,27 @@ object RuleRepository {
 
     private fun load(): List<Rule> {
         val text = prefs.getString(KEY_RULES, null) ?: return emptyList()
-        return RuleIO.decode(text).getOrElse {
-            // Keep the unreadable payload aside so the next save cannot
-            // overwrite it, then recover whatever still parses, renumbering so
-            // a duplicated id from the damaged payload cannot drop a distinct
-            // rule the way distinctBy would.
-            preserveUnreadable(text)
-            _storageWarning.value = true
-            RuleIO.reassignIds(RuleIO.salvage(text))
-        }
+        return RuleIO.decodeWithSummary(text)
+            .map { outcome ->
+                // The array parsed, but individual rules may have been dropped
+                // for a blank or invalid pattern. Surface that the same way as
+                // the salvage path rather than silently shrinking the store.
+                if (outcome.dropped > 0) {
+                    preserveUnreadable(text)
+                    _storageWarning.value = true
+                }
+                outcome.rules
+            }
+            .getOrElse {
+                // The array did not parse at all. Keep the unreadable payload
+                // aside so the next save cannot overwrite it, then recover
+                // whatever still parses, renumbering so a duplicated id from the
+                // damaged payload cannot drop a distinct rule the way distinctBy
+                // would.
+                preserveUnreadable(text)
+                _storageWarning.value = true
+                RuleIO.reassignIds(RuleIO.salvage(text))
+            }
     }
 
     // Persist the unreadable payload aside so a later save cannot overwrite
