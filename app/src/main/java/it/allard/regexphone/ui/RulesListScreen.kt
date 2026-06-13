@@ -169,6 +169,11 @@ fun RulesListScreen(
             withContext(Dispatchers.Default) { RuleIO.decodeWithSummary(text) }
                 .onSuccess { outcome ->
                     when {
+                        outcome.rules.size > MAX_IMPORT_RULES -> {
+                            snackbar.showSnackbar(
+                                ctx.getString(R.string.import_too_many, MAX_IMPORT_RULES)
+                            )
+                        }
                         outcome.rules.isEmpty() -> {
                             snackbar.showSnackbar(
                                 if (outcome.dropped > 0) {
@@ -553,6 +558,13 @@ private fun importSummary(res: Resources, verbPlural: Int, count: Int, dropped: 
 // survive process death.
 private const val MAX_SAVED_IMPORT_CHARS = 20_000
 private const val MAX_IMPORT_BYTES = 1_000_000
+
+// Cap how many rules one import may add. Every enabled rule is matched on
+// each incoming call within a fixed deadline, so an unbounded list could
+// exhaust the screening budget and leave later rules unevaluated. A 1 MB
+// file can hold far more than this; reject rather than truncate so nothing
+// is silently dropped.
+private const val MAX_IMPORT_RULES = 1_000
 
 private val SafeImportTextSaver: Saver<String?, String> = Saver(
     save = { value -> value?.takeIf { it.length <= MAX_SAVED_IMPORT_CHARS } },
