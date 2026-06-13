@@ -413,7 +413,7 @@ private fun testerVerdict(preview: TesterPreview?, editedId: Long): String {
                 R.string.tester_block,
                 byWhom(d.rule),
                 stringResource(
-                    if (d.rule.skipNotification) R.string.tester_flag_silent
+                    if (d.rule.skipNotification) R.string.tester_flag_hidden
                     else R.string.tester_flag_shown
                 ),
             )

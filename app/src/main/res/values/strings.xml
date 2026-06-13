@@ -103,7 +103,7 @@
     <string name="tester_no_match">No rule matches → ALLOW</string>
     <string name="tester_allow">Match on %s → ALLOW</string>
     <string name="tester_block">Match on %1$s → BLOCK (%2$s)</string>
-    <string name="tester_flag_silent">silent notif</string>
+    <string name="tester_flag_hidden">notif hidden</string>
     <string name="tester_flag_shown">notif shown</string>
     <string name="tester_silence">Match on %s → SILENCE (ringtone muted, call still logged and notified)</string>
 </resources>
