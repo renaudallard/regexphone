@@ -122,6 +122,13 @@ object RuleRepository {
     @Synchronized
     fun nextId(): Long {
         lastIssuedId += 1L
+        // Persist the reservation now. The editor keeps this id across process
+        // death in saved state, but the rule's own commit may not have run
+        // yet; without persisting here a restart would reload the old last_id,
+        // reissue this id to a different rule, and let the restored editor
+        // overwrite it. commit() gives the durability the saved state relies
+        // on, and runs on a save tap rather than the screening path.
+        prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).commit()
         return lastIssuedId
     }
 
