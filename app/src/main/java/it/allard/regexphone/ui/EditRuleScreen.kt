@@ -297,12 +297,15 @@ fun EditRuleScreen(
                         trimmedPattern, testNumber, patternValid, name,
                         action, enabled, skipNotification, allRules,
                     ) {
-                        value = if (!patternValid || testNumber.isBlank()) null
-                        else {
+                        // Reset to the evaluating state on every input change so
+                        // the debounce window does not keep showing the previous
+                        // number's verdict as if it were current.
+                        value = null
+                        if (patternValid && testNumber.isNotBlank()) {
                             // Debounce so intermediate keystrokes do not each
                             // burn a watchdog evaluation.
                             delay(250)
-                            withContext(Dispatchers.Default) {
+                            value = withContext(Dispatchers.Default) {
                                 val edited = buildRule(editedId)
                                 val rules =
                                     if (allRules.any { it.id == editedId }) {
