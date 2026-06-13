@@ -176,9 +176,11 @@ object RuleRepository {
 
     // Persist the unreadable payload aside so a later save cannot overwrite
     // it. Keep the first corrupt copy: a second corruption must not clobber
-    // the original that was set aside for recovery.
+    // the original that was set aside for recovery. apply() rather than
+    // commit() keeps the blocking fsync off the screening main thread that
+    // init() runs load() on.
     private fun preserveUnreadable(text: String) {
         if (prefs.contains(KEY_RULES_UNREADABLE)) return
-        prefs.edit().putString(KEY_RULES_UNREADABLE, text).commit()
+        prefs.edit().putString(KEY_RULES_UNREADABLE, text).apply()
     }
 }
