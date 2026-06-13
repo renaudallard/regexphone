@@ -284,9 +284,9 @@ fun EditRuleScreen(
                     val allRules by RuleRepository.rules.collectAsStateWithLifecycle()
                     val editedId = existing?.id ?: 0L
                     val countryIso = remember {
-                        ctx.getSystemService(TelephonyManager::class.java)?.let { telephony ->
-                            telephony.networkCountryIso?.ifEmpty { telephony.simCountryIso }
-                        }
+                        FilterCallScreeningService.countryIso(
+                            ctx.getSystemService(TelephonyManager::class.java)
+                        )
                     }
                     val preview by produceState<TesterPreview?>(
                         initialValue = null,

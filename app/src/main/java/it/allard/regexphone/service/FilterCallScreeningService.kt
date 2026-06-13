@@ -48,7 +48,7 @@ class FilterCallScreeningService : CallScreeningService() {
         RuleRepository.init(applicationContext)
         val number = details.handle?.schemeSpecificPart ?: ""
         val decision = decide(
-            candidateNumbers(number, telephonyCountryIso()),
+            candidateNumbers(number, countryIso(getSystemService(TelephonyManager::class.java))),
             RuleRepository.currentRules(),
         )
 
@@ -67,11 +67,6 @@ class FilterCallScreeningService : CallScreeningService() {
         }.build()
 
         respondToCall(details, response)
-    }
-
-    private fun telephonyCountryIso(): String? {
-        val telephony = getSystemService(TelephonyManager::class.java)
-        return telephony?.networkCountryIso?.ifEmpty { telephony.simCountryIso }
     }
 
     sealed interface Decision {
@@ -107,6 +102,16 @@ class FilterCallScreeningService : CallScreeningService() {
                 PhoneNumberUtils.formatNumberToE164(raw, countryIso.uppercase())?.let { candidates.add(it) }
             }
             return candidates.distinct()
+        }
+
+        /**
+         * The country ISO used to build the E.164 candidate, network first
+         * then SIM. Shared with the live tester so its preview agrees with the
+         * service.
+         */
+        fun countryIso(telephony: TelephonyManager?): String? {
+            if (telephony == null) return null
+            return telephony.networkCountryIso?.ifEmpty { telephony.simCountryIso }
         }
 
         fun decide(number: String, rules: List<Rule>): Decision =
