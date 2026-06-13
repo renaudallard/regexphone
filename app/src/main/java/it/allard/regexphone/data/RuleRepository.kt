@@ -127,8 +127,10 @@ object RuleRepository {
         // yet; without persisting here a restart would reload the old last_id,
         // reissue this id to a different rule, and let the restored editor
         // overwrite it. apply() keeps the fsync off the main thread this runs
-        // on; QueuedWork flushes pending writes when the app is backgrounded,
-        // which is when a system kill happens, so the reservation survives.
+        // on. The reissue still cannot happen: the saved state that carries
+        // the id is written in onSaveInstanceState, the same stop transition
+        // that flushes pending apply() writes through QueuedWork, so the id
+        // and its persisted last_id are kept or lost together, never split.
         prefs.edit().putLong(KEY_LAST_ID, lastIssuedId).apply()
         return lastIssuedId
     }
