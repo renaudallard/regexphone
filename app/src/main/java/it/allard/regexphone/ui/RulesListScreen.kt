@@ -343,20 +343,33 @@ fun RulesListScreen(
                 )
             }
         }
+        // Replace is bounded by the file cap already; only merge can push the
+        // stored set past it, so block merge when the total would exceed it.
+        val mergeWouldExceed = rules.size + pendingCount > MAX_IMPORT_RULES
         AlertDialog(
             onDismissRequest = clear,
             title = { Text(stringResource(R.string.menu_import)) },
             text = {
-                Text(
-                    stringResource(
-                        R.string.import_dialog_text,
-                        rules.size, pendingCount, dropSuffix,
+                Column {
+                    Text(
+                        stringResource(
+                            R.string.import_dialog_text,
+                            rules.size, pendingCount, dropSuffix,
+                        )
                     )
-                )
+                    if (mergeWouldExceed) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.import_merge_over_limit, MAX_IMPORT_RULES),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(enabled = pendingRules != null && !importBusy, onClick = {
+                    TextButton(enabled = pendingRules != null && !importBusy && !mergeWouldExceed, onClick = {
                         perform(false, R.plurals.import_merged, R.string.import_merge_failed)
                     }) { Text(stringResource(R.string.merge)) }
                     TextButton(enabled = pendingRules != null && !importBusy, onClick = {
@@ -559,11 +572,12 @@ private fun importSummary(res: Resources, verbPlural: Int, count: Int, dropped: 
 private const val MAX_SAVED_IMPORT_CHARS = 20_000
 private const val MAX_IMPORT_BYTES = 1_000_000
 
-// Cap how many rules one import may add. Every enabled rule is matched on
-// each incoming call within a fixed deadline, so an unbounded list could
-// exhaust the screening budget and leave later rules unevaluated. A 1 MB
-// file can hold far more than this; reject rather than truncate so nothing
-// is silently dropped.
+// Cap on the stored rule set an import may produce, enforced on both the
+// incoming file and a merge total. Every enabled rule is matched on each
+// incoming call within a fixed deadline, so an unbounded list could exhaust
+// the screening budget and leave later rules unevaluated. A 1 MB file can
+// hold far more than this; reject rather than truncate so nothing is
+// silently dropped.
 private const val MAX_IMPORT_RULES = 1_000
 
 private val SafeImportTextSaver: Saver<String?, String> = Saver(

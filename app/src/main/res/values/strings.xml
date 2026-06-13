@@ -43,6 +43,7 @@
     <string name="export_failed">Export failed</string>
     <string name="import_too_large">File too large to import</string>
     <string name="import_too_many">Too many rules in file (limit %1$d)</string>
+    <string name="import_merge_over_limit">Merging would exceed the limit of %1$d rules. Choose Replace instead.</string>
     <string name="import_read_failed">Could not read file</string>
     <string name="import_invalid_file">Not a valid rules file</string>
     <string name="import_nothing">Nothing to import</string>
