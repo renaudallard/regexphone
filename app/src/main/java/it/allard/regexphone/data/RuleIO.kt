@@ -62,7 +62,9 @@ object RuleIO {
      * when the text is not a JSON array at all.
      */
     fun salvage(text: String): List<Rule> {
-        val elements = runCatching { json.parseToJsonElement(text).jsonArray }
+        // Strip a leading BOM exactly as decodeWithSummary does; otherwise a
+        // BOM-prefixed array fails to parse here and recovers nothing.
+        val elements = runCatching { json.parseToJsonElement(text.removePrefix("\uFEFF")).jsonArray }
             .getOrElse { return emptyList() }
         return elements
             .mapNotNull { element -> runCatching { json.decodeFromJsonElement<Rule>(element) }.getOrNull() }

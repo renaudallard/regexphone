@@ -127,6 +127,18 @@ class RuleIOTest {
     }
 
     @Test
+    fun salvageStripsLeadingBom() {
+        val text = "\uFEFF" + """
+            [
+                {"id":1,"name":"r1","pattern":"^\\+1","action":"BLOCK","enabled":true,"skipNotification":true},
+                {"name":"missing required fields"}
+            ]
+        """.trimIndent()
+        assertTrue(RuleIO.decode(text).isFailure)
+        assertEquals(listOf(1L), RuleIO.salvage(text).map { it.id })
+    }
+
+    @Test
     fun mergeAssignsFreshIds() {
         val current = listOf(testRule(1, "a"), testRule(2, "b"))
         val incoming = listOf(testRule(1, "c"), testRule(2, "d"))
