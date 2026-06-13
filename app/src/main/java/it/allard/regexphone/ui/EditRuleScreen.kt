@@ -125,6 +125,17 @@ fun EditRuleScreen(
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
 
+    // The saved rule and the tester preview must stay identical, so build the
+    // edited rule from the current fields in one place. Only the id differs.
+    fun buildRule(id: Long) = Rule(
+        id = id,
+        name = name.trim(),
+        pattern = trimmedPattern,
+        action = action,
+        enabled = enabled,
+        skipNotification = skipNotification,
+    )
+
     val dirty = if (existing == null) {
         name.isNotBlank() || pattern.isNotBlank() || action != RuleAction.BLOCK ||
             !enabled || !skipNotification
@@ -163,14 +174,7 @@ fun EditRuleScreen(
                             if (saving) return@onSave
                             saving = true
                             if (assignedId < 0) assignedId = RuleRepository.nextId()
-                            val rule = Rule(
-                                id = assignedId,
-                                name = name.trim(),
-                                pattern = trimmedPattern,
-                                action = action,
-                                enabled = enabled,
-                                skipNotification = skipNotification,
-                            )
+                            val rule = buildRule(assignedId)
                             scope.launch {
                                 val ok = RuleRepository.save(rule)
                                 saving = false
@@ -299,14 +303,7 @@ fun EditRuleScreen(
                             // burn a watchdog evaluation.
                             delay(250)
                             withContext(Dispatchers.Default) {
-                                val edited = Rule(
-                                    id = editedId,
-                                    name = name.trim(),
-                                    pattern = trimmedPattern,
-                                    action = action,
-                                    enabled = enabled,
-                                    skipNotification = skipNotification,
-                                )
+                                val edited = buildRule(editedId)
                                 val rules =
                                     if (allRules.any { it.id == editedId }) {
                                         allRules.map { if (it.id == editedId) edited else it }
