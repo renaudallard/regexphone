@@ -86,6 +86,12 @@ class FilterCallScreeningService : CallScreeningService() {
         // several fresh patterns each exhaust their individual watchdog
         // timeout on the first call after process start.
         private const val TOTAL_BUDGET_MS = 3500L
+        // Cap the ALLOW pass below the full budget so a heavy or slow ALLOW
+        // ruleset cannot drain the deadline and leave the BLOCK and SILENCE
+        // passes no time, which would let a call the user blocked ring
+        // through. A slow ALLOW rule cut short by this smaller cap at worst
+        // lets a later BLOCK override a whitelist, the safe direction.
+        private const val ALLOW_BUDGET_MS = 2000L
 
         /**
          * The handle is whatever the network delivered: depending on the
@@ -111,17 +117,18 @@ class FilterCallScreeningService : CallScreeningService() {
             rules: List<Rule>,
             scope: RegexGuard.Scope = RegexGuard.Scope.SCREENING,
         ): Decision {
-            val deadline = System.nanoTime() + TOTAL_BUDGET_MS * 1_000_000L
-            fun remainingMs(): Long = (deadline - System.nanoTime()) / 1_000_000L
+            val start = System.nanoTime()
+            fun remainingMs(budgetMs: Long): Long =
+                budgetMs - (System.nanoTime() - start) / 1_000_000L
             val active = rules.filter { it.enabled }
-            fun firstMatching(action: RuleAction): Rule? =
+            fun firstMatching(action: RuleAction, budgetMs: Long): Rule? =
                 active.firstOrNull { rule ->
-                    rule.action == action && numbers.any { rule.matches(it, remainingMs(), scope) }
+                    rule.action == action && numbers.any { rule.matches(it, remainingMs(budgetMs), scope) }
                 }
 
-            firstMatching(RuleAction.ALLOW)?.let { return Decision.Allow(it) }
-            firstMatching(RuleAction.BLOCK)?.let { return Decision.Block(it) }
-            firstMatching(RuleAction.SILENCE)?.let { return Decision.Silence(it) }
+            firstMatching(RuleAction.ALLOW, ALLOW_BUDGET_MS)?.let { return Decision.Allow(it) }
+            firstMatching(RuleAction.BLOCK, TOTAL_BUDGET_MS)?.let { return Decision.Block(it) }
+            firstMatching(RuleAction.SILENCE, TOTAL_BUDGET_MS)?.let { return Decision.Silence(it) }
             return Decision.Allow()
         }
     }
