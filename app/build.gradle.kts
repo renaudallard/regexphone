@@ -62,12 +62,19 @@ android {
         compose = true
     }
 
-    applicationVariants.all {
-        val variant = this
-        outputs.all {
-            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
-                "regexphone-${variant.versionName}.apk"
-        }
+}
+
+// Rename each APK after the version. The legacy applicationVariants API is
+// removed in AGP 9, so drive the rename from the new Variant API instead. AGP
+// still exposes no public setter for the output file name, so reach the impl
+// behind a filterIsInstance guard.
+androidComponents {
+    onVariants { variant ->
+        variant.outputs
+            .filterIsInstance<com.android.build.api.variant.impl.VariantOutputImpl>()
+            .forEach { output ->
+                output.outputFileName.set(output.versionName.map { "regexphone-$it.apk" })
+            }
     }
 }
 
