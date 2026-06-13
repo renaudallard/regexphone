@@ -174,13 +174,17 @@ object RuleRepository {
         return RuleIO.decodeWithSummary(text)
             .map { outcome ->
                 // The array parsed, but individual rules may have been dropped
-                // for a blank or invalid pattern. Surface that the same way as
-                // the salvage path rather than silently shrinking the store.
-                if (outcome.dropped > 0) {
+                // for a blank or invalid pattern, or carry duplicate ids that
+                // would crash the id-keyed list and misroute edits. Surface and
+                // repair both the same way as the salvage path rather than
+                // silently shrinking the store or loading colliding ids.
+                val hasDuplicateIds =
+                    outcome.rules.distinctBy { it.id }.size != outcome.rules.size
+                if (outcome.dropped > 0 || hasDuplicateIds) {
                     preserveUnreadable(text)
                     _storageWarning.value = true
                 }
-                outcome.rules
+                if (hasDuplicateIds) RuleIO.reassignIds(outcome.rules) else outcome.rules
             }
             .getOrElse {
                 // The array did not parse at all. Keep the unreadable payload
