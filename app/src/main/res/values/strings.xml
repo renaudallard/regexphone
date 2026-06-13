@@ -13,6 +13,7 @@
     <string name="dismiss">Dismiss</string>
     <string name="undo">Undo</string>
     <string name="rule_unnamed">(unnamed)</string>
+    <string name="a11y_enable_rule">Enable rule %1$s</string>
     <string name="empty_title">No rules yet</string>
     <string name="empty_body">Tap + to add a regex rule, or Import from the menu.</string>
     <string name="action_block">BLOCK</string>

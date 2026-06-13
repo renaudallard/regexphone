@@ -88,6 +88,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -501,7 +503,15 @@ private fun RuleRow(
             Spacer(Modifier.height(4.dp))
             ActionChip(rule.action)
         }
-        Switch(checked = rule.enabled, onCheckedChange = { onToggle() })
+        val toggleLabel = stringResource(
+            R.string.a11y_enable_rule,
+            rule.name.ifBlank { stringResource(R.string.rule_unnamed) },
+        )
+        Switch(
+            checked = rule.enabled,
+            onCheckedChange = { onToggle() },
+            modifier = Modifier.semantics { contentDescription = toggleLabel },
+        )
         IconButton(onClick = onEdit) {
             Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.edit))
         }
