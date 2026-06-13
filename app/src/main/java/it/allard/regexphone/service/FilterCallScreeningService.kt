@@ -31,6 +31,7 @@ import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
+import androidx.annotation.VisibleForTesting
 import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
@@ -117,6 +118,7 @@ class FilterCallScreeningService : CallScreeningService() {
             return telephony.networkCountryIso?.takeIf { it.isNotEmpty() } ?: telephony.simCountryIso
         }
 
+        @VisibleForTesting
         fun decide(number: String, rules: List<Rule>): Decision =
             decide(listOf(number), rules)
 
