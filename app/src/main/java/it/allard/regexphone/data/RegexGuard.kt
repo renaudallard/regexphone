@@ -43,21 +43,43 @@ import java.util.regex.Pattern
  * A match cannot be cancelled once started. A pattern that misses its full
  * allowance is blacklisted for the rest of the process, separately per
  * [Scope]: the live tester runs the same rules against arbitrary typed input
- * in the same process and must not blacklist a saved rule for real calls. The
- * number of watchdog threads alive at once is a hard cap enforced by
- * reservation, and an abandoned runaway is dropped to minimum priority.
+ * in the same process and must not blacklist a saved rule for real calls.
+ *
+ * How many matches run at once is a hard cap enforced by reservation. A
+ * runaway that misses its deadline is dropped to minimum priority and
+ * abandoned: it releases its live slot so a fresh match is never blocked by an
+ * un-stoppable one, and is instead accounted against a separate, larger cap on
+ * background burners. That cap, not the live cap, is what a crafted set of
+ * distinct catastrophic patterns can fill, and only at the cost of extra
+ * background CPU, never by silencing the screener.
  */
 object RegexGuard {
     const val DEFAULT_TIMEOUT_MS = 1000L
     private const val MAX_LIVE_THREADS = 6
+    private const val MAX_ABANDONED_THREADS = 16
     private const val MAX_POISONED = 64
+
+    // Slot state for one match, advanced by whichever of the two racing
+    // parties acts first: the worker thread when the match finishes, or the
+    // caller at the deadline. CAS makes each transition happen exactly once,
+    // so a slot is released exactly once.
+    private const val STATE_LIVE = 0
+    private const val STATE_ABANDONED = 1
+    private const val STATE_DONE = 2
 
     /** Which blacklist a match reads and writes. */
     enum class Scope { SCREENING, TESTER }
 
     private val screeningPoisoned = ConcurrentHashMap.newKeySet<String>()
     private val testerPoisoned = ConcurrentHashMap.newKeySet<String>()
+    // Matches we are actively waiting on. The reservation bounds concurrency;
+    // the slot is released the moment we stop waiting, whether the match
+    // finished or was abandoned at the deadline.
     private val liveThreads = AtomicInteger(0)
+    // Abandoned runaways still burning a core past their deadline. They no
+    // longer hold a live slot, so they cannot block a fresh match; this
+    // separate cap bounds how many may pile up under a crafted-rules attack.
+    private val abandonedThreads = AtomicInteger(0)
 
     /**
      * Returns whether [pattern] is found in [input], or null when the match
@@ -77,27 +99,33 @@ object RegexGuard {
         // tester's blacklist.
         if (key in screeningPoisoned) return null
         if (scope == Scope.TESTER && key in testerPoisoned) return null
-        if (!reserveThread()) return null
+        if (!tryReserve(liveThreads, MAX_LIVE_THREADS)) return null
+        val state = AtomicInteger(STATE_LIVE)
         val task = FutureTask {
             try {
                 pattern.matcher(input).find()
             } finally {
-                liveThreads.decrementAndGet()
+                when {
+                    state.compareAndSet(STATE_LIVE, STATE_DONE) -> liveThreads.decrementAndGet()
+                    state.compareAndSet(STATE_ABANDONED, STATE_DONE) -> abandonedThreads.decrementAndGet()
+                }
             }
         }
         val thread = Thread(task, "regex-guard").apply { isDaemon = true }
         try {
             thread.start()
         } catch (t: Throwable) {
-            liveThreads.decrementAndGet()
+            if (state.compareAndSet(STATE_LIVE, STATE_DONE)) liveThreads.decrementAndGet()
             return null
         }
         return try {
             task.get(timeoutMs, TimeUnit.MILLISECONDS)
         } catch (_: TimeoutException) {
-            // The runaway cannot be stopped; stop it competing with the rest
-            // of the app while it burns its core in the background.
+            // The runaway cannot be stopped; drop it to minimum priority and
+            // abandon it so it stops holding a live slot while it burns its
+            // core in the background.
             thread.priority = Thread.MIN_PRIORITY
+            abandon(state)
             // Only blacklist a run that had its full time allowance; one cut
             // short by the caller's remaining budget proves nothing. When the
             // set is full, drop the new entry rather than wiping known ones;
@@ -114,14 +142,28 @@ object RegexGuard {
         }
     }
 
-    // Reserve a slot before starting the thread so the cap is an invariant,
-    // not a racy check. Healthy matches hold a slot for microseconds; only
-    // abandoned runaways hold one for long.
-    private fun reserveThread(): Boolean {
+    // Move a timed-out match from its live slot to an abandoned one so a fresh
+    // match can take the freed live slot. A no-op if the worker already
+    // finished and released the slot, or if the background-burner cap is full,
+    // in which case the slot stays held until the worker ends on its own.
+    private fun abandon(state: AtomicInteger) {
+        if (!tryReserve(abandonedThreads, MAX_ABANDONED_THREADS)) return
+        if (state.compareAndSet(STATE_LIVE, STATE_ABANDONED)) {
+            liveThreads.decrementAndGet()
+        } else {
+            abandonedThreads.decrementAndGet()
+        }
+    }
+
+    // Reserve a slot before starting work so the cap is an invariant, not a
+    // racy check. Healthy matches hold a live slot for microseconds; only
+    // abandoned runaways hold one for long, and only until abandon() moves
+    // them off it.
+    private fun tryReserve(counter: AtomicInteger, max: Int): Boolean {
         while (true) {
-            val current = liveThreads.get()
-            if (current >= MAX_LIVE_THREADS) return false
-            if (liveThreads.compareAndSet(current, current + 1)) return true
+            val current = counter.get()
+            if (current >= max) return false
+            if (counter.compareAndSet(current, current + 1)) return true
         }
     }
 }
