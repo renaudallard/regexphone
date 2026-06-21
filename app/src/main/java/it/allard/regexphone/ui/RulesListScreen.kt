@@ -278,7 +278,12 @@ fun RulesListScreen(
                             onEdit = { onEditRule(rule.id) },
                             onDelete = {
                                 val deleted = rule
-                                val originalIndex = rules.indexOf(rule)
+                                // Read the index from the repository at click
+                                // time instead of capturing the composition's
+                                // list, so this callback stays stable across
+                                // list changes and a delete elsewhere does not
+                                // recompose every visible row.
+                                val originalIndex = RuleRepository.currentRules().indexOf(rule)
                                 scope.launch {
                                     if (!RuleRepository.delete(deleted.id)) {
                                         snackbar.showSnackbar(ctx.getString(R.string.delete_failed))
