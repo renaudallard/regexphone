@@ -36,6 +36,7 @@ import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleRepository
+import java.util.Locale
 
 class FilterCallScreeningService : CallScreeningService() {
 
@@ -100,7 +101,12 @@ class FilterCallScreeningService : CallScreeningService() {
             val candidates = mutableListOf(raw)
             PhoneNumberUtils.normalizeNumber(raw)?.takeIf { it.isNotEmpty() }?.let { candidates.add(it) }
             if (!countryIso.isNullOrEmpty()) {
-                PhoneNumberUtils.formatNumberToE164(raw, countryIso.uppercase())?.let { candidates.add(it) }
+                // ISO region codes are ASCII, so uppercase with ROOT: the
+                // default locale's Turkish-i rule would turn an "i" country
+                // (in, it, fi, ...) into "İ" (U+0130), an unknown region that
+                // makes formatNumberToE164 drop the E.164 candidate.
+                val region = countryIso.uppercase(Locale.ROOT)
+                PhoneNumberUtils.formatNumberToE164(raw, region)?.let { candidates.add(it) }
             }
             return candidates.distinct()
         }
