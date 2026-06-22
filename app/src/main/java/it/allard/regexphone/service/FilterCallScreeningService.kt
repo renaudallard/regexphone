@@ -128,10 +128,16 @@ class FilterCallScreeningService : CallScreeningService() {
         fun decide(number: String, rules: List<Rule>): Decision =
             decide(listOf(number), rules)
 
+        // The pass budgets are parameters defaulting to the production caps so
+        // a test can drive a pass to zero remaining time and assert the
+        // starvation guard deterministically, rather than with a wall-clock
+        // dependent slow pattern.
         fun decide(
             numbers: List<String>,
             rules: List<Rule>,
             scope: RegexGuard.Scope = RegexGuard.Scope.SCREENING,
+            allowBudgetMs: Long = ALLOW_BUDGET_MS,
+            totalBudgetMs: Long = TOTAL_BUDGET_MS,
         ): Decision {
             val start = System.nanoTime()
             fun remainingMs(budgetMs: Long): Long =
@@ -142,9 +148,9 @@ class FilterCallScreeningService : CallScreeningService() {
                     rule.action == action && numbers.any { rule.matches(it, remainingMs(budgetMs), scope) }
                 }
 
-            firstMatching(RuleAction.ALLOW, ALLOW_BUDGET_MS)?.let { return Decision.Allow(it) }
-            firstMatching(RuleAction.BLOCK, TOTAL_BUDGET_MS)?.let { return Decision.Block(it) }
-            firstMatching(RuleAction.SILENCE, TOTAL_BUDGET_MS)?.let { return Decision.Silence(it) }
+            firstMatching(RuleAction.ALLOW, allowBudgetMs)?.let { return Decision.Allow(it) }
+            firstMatching(RuleAction.BLOCK, totalBudgetMs)?.let { return Decision.Block(it) }
+            firstMatching(RuleAction.SILENCE, totalBudgetMs)?.let { return Decision.Silence(it) }
             return Decision.Allow()
         }
     }

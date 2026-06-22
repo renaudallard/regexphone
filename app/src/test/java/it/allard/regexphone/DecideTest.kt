@@ -186,4 +186,45 @@ class DecideTest {
         )
         assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Allow)
     }
+
+    @Test
+    fun exhaustedAllowBudgetStillBlocks() {
+        // A starved ALLOW pass must never swallow a matching BLOCK rule: the
+        // call the user blocked still gets blocked. A zero ALLOW budget makes
+        // that pass's remaining time non-positive, so its match short-circuits
+        // deterministically while the BLOCK pass keeps the full budget.
+        val rules = listOf(
+            testRule(id = 1, pattern = "^\\+1", action = RuleAction.ALLOW),
+            testRule(id = 2, pattern = "^\\+1", action = RuleAction.BLOCK),
+        )
+        val d = FilterCallScreeningService.decide(
+            listOf("+15551234567"), rules, allowBudgetMs = 0L,
+        )
+        assertTrue(d is Decision.Block)
+        assertEquals(2L, (d as Decision.Block).rule.id)
+    }
+
+    @Test
+    fun exhaustedBudgetFallsThroughToAllow() {
+        // With the whole budget spent no pass can match, so decide() falls
+        // through to the safe default of letting the call ring rather than
+        // acting on a half-evaluated ruleset.
+        val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.BLOCK))
+        val d = FilterCallScreeningService.decide(
+            listOf("+15551234567"), rules, allowBudgetMs = 0L, totalBudgetMs = 0L,
+        )
+        assertTrue(d is Decision.Allow)
+        assertEquals(null, (d as Decision.Allow).rule)
+    }
+
+    @Test
+    fun exhaustedBudgetDoesNotSilence() {
+        // The SILENCE pass draws on the same total budget; with it spent, a
+        // matching silence rule cannot fire either.
+        val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.SILENCE))
+        val d = FilterCallScreeningService.decide(
+            listOf("+15551234567"), rules, totalBudgetMs = 0L,
+        )
+        assertTrue(d is Decision.Allow)
+    }
 }
