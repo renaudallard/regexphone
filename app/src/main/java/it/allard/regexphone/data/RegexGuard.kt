@@ -27,6 +27,7 @@
 
 package it.allard.regexphone.data
 
+import androidx.annotation.VisibleForTesting
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
@@ -140,6 +141,17 @@ object RegexGuard {
         } catch (_: Exception) {
             null
         }
+    }
+
+    /**
+     * Whether [pattern] is currently blacklisted for [scope], mirroring the
+     * fast-fail gate in [find]. Lets a test assert the blacklist by state
+     * rather than by timing how fast a rejected match returns.
+     */
+    @VisibleForTesting
+    fun isPoisoned(pattern: Pattern, scope: Scope = Scope.SCREENING): Boolean {
+        val key = pattern.pattern()
+        return key in screeningPoisoned || (scope == Scope.TESTER && key in testerPoisoned)
     }
 
     // Move a timed-out match from its live slot to an abandoned one so a fresh
