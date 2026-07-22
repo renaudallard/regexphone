@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "it.allard.regexphone"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "it.allard.regexphone"
         minSdk = 31
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 16
         versionName = "0.2.1"
     }

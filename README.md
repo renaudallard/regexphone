@@ -11,9 +11,10 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/minSdk-31-3DDC84?logo=android&logoColor=white" alt="minSdk 31" />
+  <img src="https://img.shields.io/badge/targetSdk-36-3DDC84?logo=android&logoColor=white" alt="targetSdk 36" />
   <img src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.0" />
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
-  <img src="https://img.shields.io/badge/build-Gradle%208.10-02303A?logo=gradle&logoColor=white" alt="Gradle 8.10" />
+  <img src="https://img.shields.io/badge/build-Gradle%208.11-02303A?logo=gradle&logoColor=white" alt="Gradle 8.11" />
   <img src="https://img.shields.io/badge/license-BSD--2--Clause-blue" alt="BSD 2-Clause license" />
   <img src="https://img.shields.io/github/downloads/renaudallard/regexphone/total?logo=github&logoColor=white&label=downloads&cb=2" alt="GitHub downloads" />
 </p>
@@ -89,10 +90,11 @@ On first launch tap **Set as default** in the status card and accept the system 
 | Tool | Version |
 | --- | --- |
 | JDK | 17 or 21 |
-| Android SDK | Platform 35 and Build-tools 35.0.x |
-| Gradle | 8.10.2 (via wrapper) |
+| Android SDK | Platform 36 and Build-tools 36.0.0 |
+| Android Gradle Plugin | 8.10.1 |
+| Gradle | 8.11.1 (via wrapper) |
 
-Use JDK 17 or 21. Gradle 8.10.2's embedded Kotlin compiler cannot parse the JDK 25 version string and fails with `IllegalArgumentException: 25.0.3`. If your system default is newer, point the build at a supported JDK:
+Use JDK 17 or 21. Gradle 8.11.1's embedded Kotlin compiler cannot parse the JDK 25 version string and fails with `IllegalArgumentException: 25.0.3`. If your system default is newer, point the build at a supported JDK:
 
 ```sh
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64 ./gradlew ...
@@ -105,7 +107,7 @@ git clone https://github.com/renaudallard/regexphone.git
 cd regexphone
 
 # One-time, only if gradle/wrapper/gradle-wrapper.jar is missing:
-gradle wrapper --gradle-version 8.10.2
+gradle wrapper --gradle-version 8.11.1
 
 ./gradlew testDebugUnitTest
 ./gradlew assembleDebug
@@ -148,17 +150,17 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
 export PATH=~/Android/Sdk/cmdline-tools/latest/bin:$PATH
 
 yes | sdkmanager --licenses
-sdkmanager 'platforms;android-35' 'build-tools;35.0.1' 'platform-tools'
+sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
 
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 ```
 
-Debian's `gradle` is 4.4.1, which is too old to bootstrap AGP 8. Either copy `gradle/wrapper/gradle-wrapper.jar` from a host that has it, or grab a standalone Gradle 8.10.2:
+Debian's `gradle` is 4.4.1, which is too old to bootstrap AGP 8. Either copy `gradle/wrapper/gradle-wrapper.jar` from a host that has it, or grab a standalone Gradle 8.11.1:
 
 ```sh
-curl -LO https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
-unzip gradle-8.10.2-bin.zip -d ~/Android
-~/Android/gradle-8.10.2/bin/gradle wrapper --gradle-version 8.10.2
+curl -LO https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+unzip gradle-8.11.1-bin.zip -d ~/Android
+~/Android/gradle-8.11.1/bin/gradle wrapper --gradle-version 8.11.1
 ```
 
 </details>
