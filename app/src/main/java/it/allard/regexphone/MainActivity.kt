@@ -28,6 +28,8 @@
 package it.allard.regexphone
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -64,6 +66,13 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         FilterCallScreeningService.uiVisible = false
         super.onStop()
+        // The platform saves the screen state after this returns and hands
+        // it to the system from a task it then posts to this thread, which
+        // also flushes pending preference writes. Post twice to queue behind
+        // that task, or the restart would lose the state. By then the flag is
+        // set again when the stop was only a configuration change.
+        val main = Handler(Looper.getMainLooper())
+        main.post { main.post { FilterCallScreeningService.restartIfSaturated() } }
     }
 }
 

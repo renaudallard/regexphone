@@ -40,7 +40,7 @@
 
     <!-- Overload warning card -->
     <string name="overload_title">Call screening is overloaded</string>
-    <string name="overload_body">Too many rules took too long to evaluate on recent calls, so calls may ring through unscreened. Disable or delete the slow rules. Screening resets itself on the next call once RegexPhone is no longer on screen.</string>
+    <string name="overload_body">Too many rules took too long to evaluate on recent calls, so calls may ring through unscreened. Disable or delete the slow rules. Screening resets itself once RegexPhone is no longer on screen.</string>
 
     <!-- Notifications -->
     <string name="notify_off_body">Notifications are off for RegexPhone, so NOTIFY rules cannot warn you.</string>

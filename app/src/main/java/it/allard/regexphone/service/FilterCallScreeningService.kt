@@ -76,15 +76,7 @@ class FilterCallScreeningService : CallScreeningService() {
 
         respondToCall(details, response)
         if (decision is Decision.Notify) postWarning(number, decision.rule)
-        RuleRepository.saveSlowPatterns()
-
-        // Runaway matches cannot be stopped and only end with the process.
-        // Once they fill the abandoned slots the next ones start taking the
-        // match slots, until no rule matches at all. Give up the process
-        // before that, now that this call is answered: the next call starts
-        // a fresh one with every slot free. Not while the app is on screen,
-        // which would close it under the user; the rules list warns there.
-        if (RegexGuard.saturated() && !uiVisible) Process.killProcess(Process.myPid())
+        restartIfSaturated()
     }
 
     // Posted only after the response so the call is never held up. Without
@@ -132,6 +124,21 @@ class FilterCallScreeningService : CallScreeningService() {
         /** Kept by MainActivity: whether the app is on screen. */
         @Volatile
         var uiVisible = false
+
+        /**
+         * Stores the slow patterns, then ends the process if runaway matches
+         * have filled the abandoned slots. They cannot be stopped and only
+         * end with the process, and the next ones would start taking the
+         * match slots until no rule matches at all. The service calls this
+         * once a call is answered, so the next call starts a fresh process
+         * with every slot free. Not while the app is on screen, which would
+         * close it under the user: the rules list warns there, and
+         * MainActivity calls this again when the app leaves the screen.
+         */
+        fun restartIfSaturated() {
+            RuleRepository.saveSlowPatterns()
+            if (RegexGuard.saturated() && !uiVisible) Process.killProcess(Process.myPid())
+        }
 
         private const val CHANNEL_WARNINGS = "call_warnings"
         // One id for every warning: a new matching call replaces the previous
