@@ -27,12 +27,8 @@
 
 package it.allard.regexphone.ui
 
-import android.Manifest
-import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -132,23 +128,10 @@ fun EditRuleScreen(
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
 
-    // NOTIFY is the only action that needs a permission. Ask for it only
-    // when the user picks that action, after a warning, so every other rule
-    // keeps the app permission-free.
-    var notifyEnabled by rememberRefreshedOnResume { notificationsEnabled(ctx) }
-    var confirmNotify by rememberSaveable { mutableStateOf(false) }
-    val notifyPermission = rememberLauncherForActivityResult(RequestPermission()) {
-        notifyEnabled = notificationsEnabled(ctx)
-    }
-    val chooseAction = { value: RuleAction ->
-        if (value == RuleAction.NOTIFY && !notifyEnabled &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-        ) {
-            confirmNotify = true
-        } else {
-            action = value
-        }
-    }
+    // The call-screening role grants the notification permission by itself,
+    // so there is nothing to request here. NOTIFY only needs a hint when the
+    // user has turned notifications off.
+    val notifyEnabled by rememberRefreshedOnResume { notificationsEnabled(ctx) }
 
     // The saved rule and the tester preview must stay identical, so build the
     // edited rule from the current fields in one place. Only the id differs.
@@ -260,7 +243,7 @@ fun EditRuleScreen(
                     ActionRow(
                         action = value,
                         selected = action == value,
-                        onClick = { chooseAction(value) },
+                        onClick = { action = value },
                     )
                 }
             }
@@ -362,27 +345,6 @@ fun EditRuleScreen(
                 }
             }
         }
-    }
-
-    if (confirmNotify) {
-        AlertDialog(
-            onDismissRequest = { confirmNotify = false },
-            title = { Text(stringResource(R.string.notify_permission_title)) },
-            text = { Text(stringResource(R.string.notify_permission_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmNotify = false
-                    action = RuleAction.NOTIFY
-                    // Only reachable from Android 13, see chooseAction.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                }) { Text(stringResource(R.string.notify_permission_continue)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmNotify = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
     }
 
     if (confirmDiscard) {

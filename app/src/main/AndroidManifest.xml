@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Only requested at runtime when the user picks the NOTIFY action. -->
+    <!-- For NOTIFY rules. The call-screening role grants it on Android 13 and later. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application

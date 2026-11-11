@@ -40,11 +40,12 @@ RegexPhone works by becoming your device's call-screening app (the
 call-screening role), which you grant explicitly in the system dialog and can
 revoke at any time in Android settings.
 
-The only runtime permission it can request is the notification permission
-(`POST_NOTIFICATIONS`), and only if you choose the `NOTIFY` action for a rule.
-The app warns you first and then lets Android ask. If you never use `NOTIFY`,
-no runtime permission is ever requested, and declining it only stops the
-warnings; every other action keeps working.
+The only runtime permission it holds is the notification permission
+(`POST_NOTIFICATIONS`). On Android 13 and later Android grants it together
+with the call-screening role, so the app never asks for it. It is used only to
+post the warning of a `NOTIFY` rule: if you never use `NOTIFY`, no notification
+is ever posted. You can turn notifications off for the app in Android settings;
+that only stops the warnings, and every other action keeps working.
 
 ## Storage and backup
 

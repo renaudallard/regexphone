@@ -7,7 +7,7 @@
 <p align="center">
   Block or allow incoming calls with regular expressions.<br/>
   Native Android <code>CallScreeningService</code>, no background daemons, no contacts permission, no network.<br/>
-  The notification permission is only asked for if you choose the optional <code>NOTIFY</code> action.
+  The notification permission, which Android grants with the call-screening role, is only used by the optional <code>NOTIFY</code> action.
 </p>
 
 <p align="center">
@@ -30,13 +30,13 @@ For every incoming call, RegexPhone matches the caller's phone number against yo
 ## Highlights
 
 - **Four actions per rule.** `BLOCK` rejects the call; `SILENCE` mutes the ringtone but lets the call still hit the call log and notification shade; `NOTIFY` lets the call ring normally and posts a warning notification naming the matching rule; `ALLOW` whitelists.
-- **Optional notification permission.** `NOTIFY` is the only feature that needs a permission. RegexPhone asks for `POST_NOTIFICATIONS` only when you pick `NOTIFY` in the editor, after a warning dialog; the other actions work without it. If notifications are off, the editor and the rules list say so and link to the app's notification settings.
+- **No permission prompts.** `NOTIFY` is the only feature that uses a permission, `POST_NOTIFICATIONS`. On Android 13 and later Android grants it together with the call-screening role, so RegexPhone never asks for it, and nothing is posted unless a `NOTIFY` rule matches. If you turn notifications off, the editor and the rules list say so and link to the app's notification settings.
 - **Per-block flag.** Skip the missed-call notification, per rule. Android itself always records blocked calls in the call log; only carrier and system screeners may suppress that, so RegexPhone does not pretend to offer it.
 - **Predictable precedence.** Allow beats block beats silence beats notify; otherwise the call is allowed. The verdict does not depend on rule order; only the notification flag comes from the first matching block rule.
 - **Live tester.** The edit screen previews, as you type, the decision the service would take for a sample number across all enabled rules, naming the rule that decides.
 - **Import / Export.** Save the full rule set to a JSON file via Storage Access Framework, restore it on another device, or merge two sets together. No permissions needed.
 - **Simple storage.** Rules are JSON in `SharedPreferences`, kept in device-protected storage so screening already works between a reboot and the first unlock. Device-protected storage is encrypted with a device key rather than the lock-screen credential.
-- **No background services, no contacts permission, no network access.** Without a `NOTIFY` rule, no runtime permission is ever requested.
+- **No background services, no contacts permission, no network access.**
 
 ## Screenshots
 
@@ -63,7 +63,7 @@ For each incoming call:
 1. If any enabled `ALLOW` rule matches, the call is allowed.
 2. Else if any enabled `BLOCK` rule matches, the call is rejected. The **skip notification** flag of the *first* matching block rule applies.
 3. Else if any enabled `SILENCE` rule matches, the call rings silently (no audible ringtone), but the call log and notifications are unaffected.
-4. Else if any enabled `NOTIFY` rule matches, the call rings normally and RegexPhone posts a warning notification with the rule name and the number. The notification channel ("Call warnings") has no sound of its own, since the phone is already ringing. A newer warning replaces the previous one. Without the notification permission the call just rings.
+4. Else if any enabled `NOTIFY` rule matches, the call rings normally and RegexPhone posts a warning notification with the rule name and the number. The notification channel ("Call warnings") has no sound of its own, since the phone is already ringing. A newer warning replaces the previous one. With notifications turned off the call just rings.
 5. Otherwise the call is allowed.
 
 ## Example rules

@@ -51,9 +51,9 @@ internal fun notificationsEnabled(ctx: Context): Boolean =
 
 /**
  * Explains that NOTIFY rules are inert and links to the app's notification
- * settings. Settings rather than a permission request, since Android stops
- * showing the request after repeated denials and only settings can then
- * turn notifications back on.
+ * settings. The call-screening role grants the permission, so notifications
+ * are only off when the user turned them off, and settings is where they
+ * come back on.
  */
 @Composable
 internal fun NotificationsOffNote(modifier: Modifier = Modifier) {

@@ -45,9 +45,6 @@
     <!-- Notifications -->
     <string name="notify_off_body">Notifications are off for RegexPhone, so NOTIFY rules cannot warn you.</string>
     <string name="notify_open_settings">Open settings</string>
-    <string name="notify_permission_title">Allow notifications?</string>
-    <string name="notify_permission_body">NOTIFY lets the call ring and posts a warning notification. This needs the notification permission, the only permission RegexPhone ever asks for, and Android will ask you next. The other actions keep working without it.</string>
-    <string name="notify_permission_continue">Continue</string>
     <string name="notify_channel_name">Call warnings</string>
     <string name="notify_channel_description">Posted when an incoming call matches a NOTIFY rule</string>
     <string name="notify_title">Warning: call from %1$s</string>
