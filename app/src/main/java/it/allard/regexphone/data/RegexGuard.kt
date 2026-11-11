@@ -42,9 +42,11 @@ import java.util.regex.Pattern
  * response deadline and letting a blocked call ring through.
  *
  * A match cannot be cancelled once started. A pattern that misses its full
- * allowance is blacklisted for the rest of the process, separately per
- * [Scope]: the live tester runs the same rules against arbitrary typed input
- * in the same process and must not blacklist a saved rule for real calls.
+ * allowance is blacklisted, separately per [Scope]: the live tester runs the
+ * same rules against arbitrary typed input in the same process and must not
+ * blacklist a saved rule for real calls. The screening blacklist is the set
+ * of slow patterns that [RuleRepository] stores and shows; the tester's lasts
+ * for the process.
  *
  * How many matches run at once is a hard cap enforced by reservation. A
  * runaway that misses its deadline is dropped to minimum priority and
@@ -62,7 +64,6 @@ import java.util.regex.Pattern
  */
 object RegexGuard {
     const val DEFAULT_TIMEOUT_MS = 1000L
-    private const val MAX_POISONED = 64
 
     // Slot state for one match, advanced by whichever of the two racing
     // parties acts first: the worker thread when the match finishes, or the
@@ -77,7 +78,7 @@ object RegexGuard {
     /** Which slots and which blacklist a match uses. */
     enum class Scope { SCREENING, TESTER }
 
-    private class Pool(val maxLive: Int, val maxAbandoned: Int) {
+    private class Pool(val maxLive: Int, val maxAbandoned: Int, val maxPoisoned: Int) {
         // Matches we are actively waiting on. The reservation bounds
         // concurrency; the slot is released the moment we stop waiting,
         // whether the match finished or was abandoned at the deadline.
@@ -96,10 +97,12 @@ object RegexGuard {
         }
     }
 
-    private val screening = Pool(maxLive = 6, maxAbandoned = 16)
+    // Screening only ever runs the patterns of saved rules, and the stored
+    // blacklist is pruned to those, so its cap can cover a full import.
+    private val screening = Pool(maxLive = 6, maxAbandoned = 16, maxPoisoned = 1024)
     // The tester only overlaps with its own superseded previews, so it needs
-    // fewer slots.
-    private val tester = Pool(maxLive = 4, maxAbandoned = 4)
+    // fewer slots, and it sees arbitrary typed patterns, so a small blacklist.
+    private val tester = Pool(maxLive = 4, maxAbandoned = 4, maxPoisoned = 64)
 
     private fun pool(scope: Scope) = if (scope == Scope.SCREENING) screening else tester
 
@@ -180,7 +183,7 @@ object RegexGuard {
             // the lock keeps the cap exact under concurrent timeouts.
             if (timeoutMs >= DEFAULT_TIMEOUT_MS) {
                 synchronized(pool.poisoned) {
-                    if (pool.poisoned.size < MAX_POISONED) pool.poisoned.add(key)
+                    if (pool.poisoned.size < pool.maxPoisoned) pool.poisoned.add(key)
                 }
             }
             null
@@ -195,6 +198,29 @@ object RegexGuard {
      * rule matching, so callers should treat this as the point to act.
      */
     fun saturated(): Boolean = screening.abandoned.get() >= screening.maxAbandoned
+
+    /** The patterns blacklisted for call screening. */
+    fun slowPatterns(): Set<String> = HashSet(screening.poisoned)
+
+    /** Blacklists [keys] for call screening, as read back from storage. */
+    fun restoreSlow(keys: Collection<String>) {
+        synchronized(screening.poisoned) {
+            for (key in keys) {
+                if (screening.poisoned.size >= screening.maxPoisoned) break
+                screening.poisoned.add(key)
+            }
+        }
+    }
+
+    /** Admits [key] to call screening again, to give it another try. */
+    fun forgive(key: String) {
+        screening.poisoned.remove(key)
+    }
+
+    /** Drops the blacklisted screening patterns that are not in [keys]. */
+    fun retainSlow(keys: Set<String>) {
+        screening.poisoned.retainAll(keys)
+    }
 
     /**
      * Whether [pattern] is currently blacklisted for [scope], mirroring the

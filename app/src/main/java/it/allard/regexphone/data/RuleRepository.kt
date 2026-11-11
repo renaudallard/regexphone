@@ -42,6 +42,7 @@ object RuleRepository {
     private const val KEY_RULES = "rules"
     private const val KEY_LAST_ID = "last_id"
     private const val KEY_RULES_UNREADABLE = "rules_unreadable"
+    private const val KEY_SLOW_PATTERNS = "slow_patterns"
 
     // Volatile for the unsynchronized fast path in init(): onScreenCall runs
     // init() on the main thread for every call, and taking the monitor there
@@ -56,6 +57,12 @@ object RuleRepository {
 
     private val _rules = MutableStateFlow<List<Rule>>(emptyList())
     val rules: StateFlow<List<Rule>> = _rules.asStateFlow()
+
+    // Patterns call screening skips because a match ran out of time. Stored
+    // so a restarted process does not time each of them out again, and shown
+    // on their rules so a skipped rule is not silently dead.
+    private val _slowPatterns = MutableStateFlow<Set<String>>(emptySet())
+    val slowPatterns: StateFlow<Set<String>> = _slowPatterns.asStateFlow()
 
     private val _storageWarning = MutableStateFlow(false)
     val storageWarning: StateFlow<Boolean> = _storageWarning.asStateFlow()
@@ -109,11 +116,16 @@ object RuleRepository {
             loaded.maxOfOrNull { it.id } ?: 0L,
         )
         _rules.value = loaded
+        val patterns = loaded.mapTo(HashSet()) { it.pattern }
+        val slow = prefs.getStringSet(KEY_SLOW_PATTERNS, null).orEmpty().filterTo(HashSet()) { it in patterns }
+        RegexGuard.restoreSlow(slow)
+        _slowPatterns.value = slow
     }
 
     fun currentRules(): List<Rule> = _rules.value
 
-    suspend fun save(rule: Rule): Boolean = persist { current, _ ->
+    // Saving a rule from the editor gives its pattern another try.
+    suspend fun save(rule: Rule): Boolean = persist(forgive = rule.pattern) { current, _ ->
         current.toMutableList().also { list ->
             val idx = list.indexOfFirst { it.id == rule.id }
             if (idx >= 0) list[idx] = rule else list.add(rule)
@@ -131,8 +143,28 @@ object RuleRepository {
         }
     }
 
-    suspend fun toggleEnabled(id: Long): Boolean = persist { current, _ ->
-        current.map { if (it.id == id) it.copy(enabled = !it.enabled) else it }
+    // Turning a rule back on gives its pattern another try.
+    suspend fun toggleEnabled(id: Long): Boolean {
+        val retry = findById(id)?.takeIf { !it.enabled }?.pattern
+        return persist(forgive = retry) { current, _ ->
+            current.map { if (it.id == id) it.copy(enabled = !it.enabled) else it }
+        }
+    }
+
+    /**
+     * Stores the patterns call screening has blacklisted, if that set
+     * changed. The service calls this once a call is answered. commit()
+     * rather than apply(): the service may end the process right after, and
+     * a pending apply() would be lost with it. The fsync is rare, only after
+     * a call on which a pattern newly timed out, and the call is answered.
+     */
+    @Synchronized
+    fun saveSlowPatterns() {
+        val slow = RegexGuard.slowPatterns()
+        if (slow == _slowPatterns.value) return
+        if (prefs.edit().putStringSet(KEY_SLOW_PATTERNS, slow).commit()) {
+            _slowPatterns.value = slow
+        }
     }
 
     fun findById(id: Long): Rule? = _rules.value.firstOrNull { it.id == id }
@@ -173,21 +205,33 @@ object RuleRepository {
 
     // The synchronous commit() fsyncs the preferences file, so keep it off
     // the main thread, which the screening service shares.
-    private suspend fun persist(transform: (current: List<Rule>, lastId: Long) -> List<Rule>): Boolean =
-        withContext(Dispatchers.IO) { persistLocked(transform) }
+    private suspend fun persist(
+        forgive: String? = null,
+        transform: (current: List<Rule>, lastId: Long) -> List<Rule>,
+    ): Boolean = withContext(Dispatchers.IO) { persistLocked(forgive, transform) }
 
+    // The slow patterns go in the same commit: [forgive] leaves the set, and
+    // so does every pattern no rule uses any more.
     @Synchronized
-    private fun persistLocked(transform: (current: List<Rule>, lastId: Long) -> List<Rule>): Boolean {
+    private fun persistLocked(
+        forgive: String?,
+        transform: (current: List<Rule>, lastId: Long) -> List<Rule>,
+    ): Boolean {
         val newList = transform(_rules.value, lastIssuedId)
         val newMax = newList.maxOfOrNull { it.id } ?: 0L
         val nextLastId = maxOf(newMax, lastIssuedId)
+        val patterns = newList.mapTo(HashSet()) { it.pattern }
+        val slow = RegexGuard.slowPatterns().filterTo(HashSet()) { it in patterns && it != forgive }
         val ok = prefs.edit()
             .putString(KEY_RULES, RuleIO.encode(newList))
             .putLong(KEY_LAST_ID, nextLastId)
+            .putStringSet(KEY_SLOW_PATTERNS, slow)
             .commit()
         if (ok) {
             lastIssuedId = nextLastId
             _rules.value = newList
+            RegexGuard.retainSlow(slow)
+            _slowPatterns.value = slow
         }
         return ok
     }

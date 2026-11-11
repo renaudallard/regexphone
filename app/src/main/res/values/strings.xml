@@ -20,6 +20,7 @@
     <string name="action_silence">SILENCE</string>
     <string name="action_notify">NOTIFY</string>
     <string name="action_allow">ALLOW</string>
+    <string name="rule_slow">Too slow on a call, now skipped. Edit it, or turn it off and on to retry.</string>
     <string name="rule_deleted">Rule deleted</string>
     <string name="delete_failed">Could not delete rule</string>
     <string name="restore_failed">Could not restore rule</string>

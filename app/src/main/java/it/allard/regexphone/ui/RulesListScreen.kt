@@ -116,6 +116,7 @@ fun RulesListScreen(
     val ctx = LocalContext.current
     val rules by RuleRepository.rules.collectAsStateWithLifecycle()
     val storageWarning by RuleRepository.storageWarning.collectAsStateWithLifecycle()
+    val slowPatterns by RuleRepository.slowPatterns.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -273,6 +274,7 @@ fun RulesListScreen(
                     items(rules, key = { it.id }) { rule ->
                         RuleRow(
                             rule = rule,
+                            slow = rule.enabled && rule.pattern in slowPatterns,
                             onToggle = {
                                 scope.launch {
                                     if (!RuleRepository.toggleEnabled(rule.id)) {
@@ -506,6 +508,7 @@ private fun NotificationsOffCard() {
 @Composable
 private fun RuleRow(
     rule: Rule,
+    slow: Boolean,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -529,6 +532,13 @@ private fun RuleRow(
             )
             Spacer(Modifier.height(4.dp))
             ActionChip(rule.action)
+            if (slow) {
+                Text(
+                    text = stringResource(R.string.rule_slow),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
         val toggleLabel = stringResource(
             R.string.a11y_enable_rule,

@@ -27,18 +27,24 @@
 
 package it.allard.regexphone
 
+import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.RuleIO
 import it.allard.regexphone.data.RuleRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.regex.Pattern
+import kotlinx.coroutines.runBlocking
 
 class RuleRepositoryTest {
 
     // The keys RuleRepository stores under.
     private val rules = "rules"
     private val unreadable = "rules_unreadable"
+    private val slow = "slow_patterns"
 
     @Test
     fun damagedRulesAreSetAsideUntilTheWarningIsDismissed() {
@@ -67,6 +73,84 @@ class RuleRepositoryTest {
         RuleRepository.initForTest(prefs)
         assertEquals(1, RuleRepository.currentRules().size)
         assertTrue(RuleRepository.storageWarning.value)
+    }
+
+    // Blacklists [pattern] for screening the way a real timeout does, with a
+    // match that outlasts the full allowance and then ends.
+    private fun timeOut(pattern: String) {
+        val gate = CountDownLatch(1)
+        try {
+            assertNull(
+                RegexGuard.run(pattern, RegexGuard.DEFAULT_TIMEOUT_MS, RegexGuard.Scope.SCREENING) {
+                    gate.await()
+                    false
+                }
+            )
+        } finally {
+            gate.countDown()
+        }
+    }
+
+    @Test
+    fun slowPatternsSurviveARestart() = runBlocking {
+        val prefs = FakePreferences()
+        RuleRepository.initForTest(prefs)
+        assertTrue(RuleRepository.save(testRule(1, "slow-restart")))
+
+        timeOut("slow-restart")
+        RuleRepository.saveSlowPatterns()
+        assertEquals(setOf("slow-restart"), RuleRepository.slowPatterns.value)
+        assertEquals(setOf("slow-restart"), prefs.getStringSet(slow, null))
+
+        // A new process starts with an empty guard and reads the set back.
+        RegexGuard.forgive("slow-restart")
+        RuleRepository.initForTest(prefs)
+        assertTrue(RegexGuard.isPoisoned(Pattern.compile("slow-restart")))
+        assertEquals(setOf("slow-restart"), RuleRepository.slowPatterns.value)
+
+        RuleRepository.delete(1)
+        Unit
+    }
+
+    @Test
+    fun turningARuleOffAndOnRetriesIt() = runBlocking {
+        val prefs = FakePreferences()
+        RuleRepository.initForTest(prefs)
+        assertTrue(RuleRepository.save(testRule(1, "slow-toggle")))
+        timeOut("slow-toggle")
+        RuleRepository.saveSlowPatterns()
+
+        // Off keeps the mark, back on clears it.
+        assertTrue(RuleRepository.toggleEnabled(1))
+        assertEquals(setOf("slow-toggle"), prefs.getStringSet(slow, null))
+        assertTrue(RuleRepository.toggleEnabled(1))
+        assertEquals(emptySet<String>(), prefs.getStringSet(slow, null))
+        assertEquals(emptySet<String>(), RuleRepository.slowPatterns.value)
+        assertFalse(RegexGuard.isPoisoned(Pattern.compile("slow-toggle")))
+
+        RuleRepository.delete(1)
+        Unit
+    }
+
+    @Test
+    fun savingOrDeletingARuleClearsItsSlowMark() = runBlocking {
+        val prefs = FakePreferences()
+        RuleRepository.initForTest(prefs)
+        assertTrue(RuleRepository.save(testRule(1, "slow-save")))
+        assertTrue(RuleRepository.save(testRule(2, "slow-delete")))
+        timeOut("slow-save")
+        timeOut("slow-delete")
+        RuleRepository.saveSlowPatterns()
+        assertEquals(setOf("slow-save", "slow-delete"), prefs.getStringSet(slow, null))
+
+        assertTrue(RuleRepository.save(testRule(1, "slow-save")))
+        assertEquals(setOf("slow-delete"), prefs.getStringSet(slow, null))
+        assertTrue(RuleRepository.delete(2))
+        assertEquals(emptySet<String>(), prefs.getStringSet(slow, null))
+        assertFalse(RegexGuard.isPoisoned(Pattern.compile("slow-delete")))
+
+        RuleRepository.delete(1)
+        Unit
     }
 
     @Test

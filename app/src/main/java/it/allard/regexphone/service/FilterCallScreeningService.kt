@@ -76,6 +76,7 @@ class FilterCallScreeningService : CallScreeningService() {
 
         respondToCall(details, response)
         if (decision is Decision.Notify) postWarning(number, decision.rule)
+        RuleRepository.saveSlowPatterns()
 
         // Runaway matches cannot be stopped and only end with the process.
         // Once they fill the abandoned slots the next ones start taking the
