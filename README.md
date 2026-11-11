@@ -13,9 +13,9 @@
 <p align="center">
   <img src="https://img.shields.io/badge/minSdk-31-3DDC84?logo=android&logoColor=white" alt="minSdk 31" />
   <img src="https://img.shields.io/badge/targetSdk-36-3DDC84?logo=android&logoColor=white" alt="targetSdk 36" />
-  <img src="https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.0" />
+  <img src="https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin 2.2" />
   <img src="https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
-  <img src="https://img.shields.io/badge/build-Gradle%208.11-02303A?logo=gradle&logoColor=white" alt="Gradle 8.11" />
+  <img src="https://img.shields.io/badge/build-Gradle%209.8-02303A?logo=gradle&logoColor=white" alt="Gradle 9.8" />
   <img src="https://img.shields.io/badge/license-BSD--2--Clause-blue" alt="BSD 2-Clause license" />
   <img src="https://img.shields.io/github/downloads/renaudallard/regexphone/total?logo=github&logoColor=white&label=downloads&cb=2" alt="GitHub downloads" />
 </p>
@@ -93,25 +93,17 @@ On first launch tap **Set as default** in the status card and accept the system 
 
 | Tool | Version |
 | --- | --- |
-| JDK | 17 or 21 |
+| JDK | 17 or newer, including 25 (a full JDK with `javac`, not only a JRE) |
 | Android SDK | Platform 36 and Build-tools 36.0.0 |
-| Android Gradle Plugin | 8.10.1 |
-| Gradle | 8.11.1 (via wrapper) |
-
-Use JDK 17 or 21. Gradle 8.11.1's embedded Kotlin compiler cannot parse the JDK 25 version string and fails with `IllegalArgumentException: 25.0.3`. If your system default is newer, point the build at a supported JDK:
-
-```sh
-JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64 ./gradlew ...
-```
-
-or set `org.gradle.java.home` in `~/.gradle/gradle.properties`.
+| Android Gradle Plugin | 9.4.1 (compiles Kotlin itself, Kotlin 2.2.10) |
+| Gradle | 9.8.0 (via wrapper) |
 
 ```sh
 git clone https://github.com/renaudallard/regexphone.git
 cd regexphone
 
 # One-time, only if gradle/wrapper/gradle-wrapper.jar is missing:
-gradle wrapper --gradle-version 8.11.1
+gradle wrapper --gradle-version 9.8.0
 
 ./gradlew testDebugUnitTest
 ./gradlew assembleDebug
@@ -144,13 +136,13 @@ Keystore files (`*.jks`, `*.keystore`) are gitignored. Back the keystore up off-
 <summary>Debian arm64 setup (the official <code>google-android-*-installer</code> packages are amd64-only)</summary>
 
 ```sh
-sudo apt install openjdk-21-jdk
+sudo apt install openjdk-25-jdk-headless
 curl -LO https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
 mkdir -p ~/Android/Sdk/cmdline-tools
 unzip commandlinetools-linux-13114758_latest.zip -d ~/Android/Sdk/cmdline-tools
 mv ~/Android/Sdk/cmdline-tools/cmdline-tools ~/Android/Sdk/cmdline-tools/latest
 
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-arm64
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk-arm64
 export PATH=~/Android/Sdk/cmdline-tools/latest/bin:$PATH
 
 yes | sdkmanager --licenses
@@ -159,13 +151,15 @@ sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties
 ```
 
-Debian's `gradle` is 4.4.1, which is too old to bootstrap AGP 8. Either copy `gradle/wrapper/gradle-wrapper.jar` from a host that has it, or grab a standalone Gradle 8.11.1:
+Debian's `gradle` is 4.4.1, which is too old to bootstrap AGP 9. Either copy `gradle/wrapper/gradle-wrapper.jar` from a host that has it, or grab a standalone Gradle 9.8.0:
 
 ```sh
-curl -LO https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
-unzip gradle-8.11.1-bin.zip -d ~/Android
-~/Android/gradle-8.11.1/bin/gradle wrapper --gradle-version 8.11.1
+curl -LO https://services.gradle.org/distributions/gradle-9.8.0-bin.zip
+unzip gradle-9.8.0-bin.zip -d ~/Android
+~/Android/gradle-9.8.0/bin/gradle wrapper --gradle-version 9.8.0
 ```
+
+Resource processing still needs an x86-64 machine. The `aapt2` that AGP downloads from Google's Maven repository is an x86-64 binary and fails to start on arm64, and Debian's own arm64 `aapt2` (2.19) is too old to read the platform 36 `android.jar`. Without x86-64 emulation, run the build on an amd64 host.
 
 </details>
 
