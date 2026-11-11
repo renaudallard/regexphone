@@ -85,6 +85,9 @@ object RuleRepository {
         }
         prefs = storageContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val loaded = load()
+        // A copy set aside by an earlier run is still there until the user
+        // dismisses the warning, so keep showing it across restarts.
+        if (prefs.contains(KEY_RULES_UNREADABLE)) _storageWarning.value = true
         lastIssuedId = maxOf(
             prefs.getLong(KEY_LAST_ID, 0L),
             loaded.maxOfOrNull { it.id } ?: 0L,
@@ -135,7 +138,10 @@ object RuleRepository {
         return lastIssuedId
     }
 
+    // Dismissing also drops the copy set aside for recovery: nothing reads
+    // it back, and it would otherwise keep rules the user has since deleted.
     fun dismissStorageWarning() {
+        prefs.edit().remove(KEY_RULES_UNREADABLE).apply()
         _storageWarning.value = false
     }
 
@@ -201,8 +207,9 @@ object RuleRepository {
     }
 
     // Persist the unreadable payload aside so a later save cannot overwrite
-    // it. Keep the first corrupt copy: a second corruption must not clobber
-    // the original that was set aside for recovery. apply() rather than
+    // it, until the user dismisses the warning. Keep the first corrupt copy:
+    // a second corruption must not clobber the original that was set aside
+    // for recovery. apply() rather than
     // commit() keeps the blocking fsync off the screening main thread that
     // init() runs load() on.
     private fun preserveUnreadable(text: String) {
