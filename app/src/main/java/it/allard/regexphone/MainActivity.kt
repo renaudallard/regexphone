@@ -38,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import it.allard.regexphone.data.RuleRepository
+import it.allard.regexphone.service.FilterCallScreeningService
 import it.allard.regexphone.ui.EditRuleScreen
 import it.allard.regexphone.ui.RegexPhoneTheme
 import it.allard.regexphone.ui.RulesListScreen
@@ -52,6 +53,17 @@ class MainActivity : ComponentActivity() {
                 AppNav()
             }
         }
+    }
+
+    // There is a single activity, so a flag is enough.
+    override fun onStart() {
+        super.onStart()
+        FilterCallScreeningService.uiVisible = true
+    }
+
+    override fun onStop() {
+        FilterCallScreeningService.uiVisible = false
+        super.onStop()
     }
 }
 

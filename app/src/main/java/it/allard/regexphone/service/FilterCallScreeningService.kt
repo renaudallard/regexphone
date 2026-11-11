@@ -30,6 +30,7 @@ package it.allard.regexphone.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.os.Process
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.telephony.PhoneNumberUtils
@@ -75,6 +76,14 @@ class FilterCallScreeningService : CallScreeningService() {
 
         respondToCall(details, response)
         if (decision is Decision.Notify) postWarning(number, decision.rule)
+
+        // Runaway matches cannot be stopped and only end with the process.
+        // Once they fill the abandoned slots the next ones start taking the
+        // match slots, until no rule matches at all. Give up the process
+        // before that, now that this call is answered: the next call starts
+        // a fresh one with every slot free. Not while the app is on screen,
+        // which would close it under the user; the rules list warns there.
+        if (RegexGuard.saturated() && !uiVisible) Process.killProcess(Process.myPid())
     }
 
     // Posted only after the response so the call is never held up. Without
@@ -119,6 +128,10 @@ class FilterCallScreeningService : CallScreeningService() {
     }
 
     companion object {
+        /** Kept by MainActivity: whether the app is on screen. */
+        @Volatile
+        var uiVisible = false
+
         private const val CHANNEL_WARNINGS = "call_warnings"
         // One id for every warning: a new matching call replaces the previous
         // warning instead of piling up, the call log keeps the history.
