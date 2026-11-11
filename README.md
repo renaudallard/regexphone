@@ -204,7 +204,7 @@ app/src/main/java/it/allard/regexphone/
     └── ResumeState.kt               state re-read on every resume
 ```
 
-Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exercises `FilterCallScreeningService.decide()`, `RuleIOTest.kt` covers JSON round-trip, import filtering, salvage and id reassignment, and `RegexGuardTest.kt` covers the match watchdog. All run without Android stubs.
+Tests live under `app/src/test/java/it/allard/regexphone/`: `DecideTest.kt` exercises `FilterCallScreeningService.decide()`, `RuleIOTest.kt` covers JSON round-trip, import filtering, salvage and id reassignment, `RegexGuardTest.kt` covers the match watchdog, and `RuleRepositoryTest.kt` covers the stored state on top of `FakePreferences.kt`, a map-backed stand-in for Android's preferences. All run without an Android runtime.
 
 ## Limitations
 

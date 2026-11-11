@@ -30,6 +30,7 @@ package it.allard.regexphone.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.UserManager
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,7 +84,22 @@ object RuleRepository {
             deviceContext.moveSharedPreferencesFrom(appContext, PREFS) -> deviceContext
             else -> appContext
         }
-        prefs = storageContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        open(storageContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
+        initialized = unlocked
+    }
+
+    /** Starts over on [store], which a unit test backs with a plain map. */
+    @VisibleForTesting
+    @Synchronized
+    internal fun initForTest(store: SharedPreferences) {
+        _storageWarning.value = false
+        lastIssuedId = 0L
+        open(store)
+        initialized = true
+    }
+
+    private fun open(store: SharedPreferences) {
+        prefs = store
         val loaded = load()
         // A copy set aside by an earlier run is still there until the user
         // dismisses the warning, so keep showing it across restarts.
@@ -93,7 +109,6 @@ object RuleRepository {
             loaded.maxOfOrNull { it.id } ?: 0L,
         )
         _rules.value = loaded
-        initialized = unlocked
     }
 
     fun currentRules(): List<Rule> = _rules.value
