@@ -74,7 +74,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -93,9 +92,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.allard.regexphone.R
 import it.allard.regexphone.data.Rule
@@ -260,6 +256,12 @@ fun RulesListScreen(
             if (storageWarning) {
                 StorageWarningCard(onDismiss = { RuleRepository.dismissStorageWarning() })
             }
+            // Imported rules or a later revoke can leave NOTIFY rules without
+            // the notification permission; say so instead of failing quietly.
+            val notifyEnabled by rememberRefreshedOnResume { notificationsEnabled(ctx) }
+            if (!notifyEnabled && rules.any { it.enabled && it.action == RuleAction.NOTIFY }) {
+                NotificationsOffCard()
+            }
             HorizontalDivider()
             if (rules.isEmpty()) {
                 EmptyState()
@@ -395,20 +397,9 @@ fun RulesListScreen(
 @Composable
 private fun RoleCard() {
     val ctx = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var roleHeld by remember { mutableStateOf(isCallScreeningRoleHeld(ctx)) }
+    var roleHeld by rememberRefreshedOnResume { isCallScreeningRoleHeld(ctx) }
     val launcher = rememberLauncherForActivityResult(StartActivityForResult()) {
         roleHeld = isCallScreeningRoleHeld(ctx)
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                roleHeld = isCallScreeningRoleHeld(ctx)
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Card(
@@ -482,6 +473,21 @@ private fun StorageWarningCard(onDismiss: () -> Unit) {
 }
 
 @Composable
+private fun NotificationsOffCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ),
+    ) {
+        NotificationsOffNote(modifier = Modifier.padding(16.dp))
+    }
+}
+
+@Composable
 private fun RuleRow(
     rule: Rule,
     onToggle: () -> Unit,
@@ -531,6 +537,7 @@ internal fun actionLabel(action: RuleAction): String = stringResource(
     when (action) {
         RuleAction.BLOCK -> R.string.action_block
         RuleAction.SILENCE -> R.string.action_silence
+        RuleAction.NOTIFY -> R.string.action_notify
         RuleAction.ALLOW -> R.string.action_allow
     }
 )
@@ -541,6 +548,7 @@ private fun ActionChip(action: RuleAction) {
     val (container, onContainer) = when (action) {
         RuleAction.BLOCK -> scheme.errorContainer to scheme.onErrorContainer
         RuleAction.SILENCE -> scheme.surfaceVariant to scheme.onSurfaceVariant
+        RuleAction.NOTIFY -> scheme.secondaryContainer to scheme.onSecondaryContainer
         RuleAction.ALLOW -> scheme.tertiaryContainer to scheme.onTertiaryContainer
     }
     AssistChip(

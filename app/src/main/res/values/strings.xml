@@ -18,6 +18,7 @@
     <string name="empty_body">Tap + to add a regex rule, or Import from the menu.</string>
     <string name="action_block">BLOCK</string>
     <string name="action_silence">SILENCE</string>
+    <string name="action_notify">NOTIFY</string>
     <string name="action_allow">ALLOW</string>
     <string name="rule_deleted">Rule deleted</string>
     <string name="delete_failed">Could not delete rule</string>
@@ -35,6 +36,19 @@
     <!-- Storage warning card -->
     <string name="storage_warning_title">Stored rules were damaged</string>
     <string name="storage_warning_body">Some rules could not be read. Everything recoverable is shown below and the unreadable data was kept in app storage. Re-import an exported file if rules are missing.</string>
+
+    <!-- Notifications -->
+    <string name="notify_off_body">Notifications are off for RegexPhone, so NOTIFY rules cannot warn you.</string>
+    <string name="notify_open_settings">Open settings</string>
+    <string name="notify_permission_title">Allow notifications?</string>
+    <string name="notify_permission_body">NOTIFY lets the call ring and posts a warning notification. This needs the notification permission, the only permission RegexPhone ever asks for, and Android will ask you next. The other actions keep working without it.</string>
+    <string name="notify_permission_continue">Continue</string>
+    <string name="notify_channel_name">Call warnings</string>
+    <string name="notify_channel_description">Posted when an incoming call matches a NOTIFY rule</string>
+    <string name="notify_title">Warning: call from %1$s</string>
+    <string name="notify_text">Matches rule \'%1$s\'</string>
+    <string name="notify_text_unnamed">Matches an unnamed rule</string>
+    <string name="notify_hidden_number">a hidden number</string>
 
     <!-- Import and export -->
     <plurals name="export_done">
@@ -83,6 +97,10 @@
     <string name="pattern_invalid">Invalid regular expression</string>
     <string name="pattern_whitespace_hint">Leading or trailing whitespace will be trimmed on save.</string>
     <string name="action_label">Action</string>
+    <string name="action_block_desc">Reject the call</string>
+    <string name="action_silence_desc">Ring without sound, still logged and notified</string>
+    <string name="action_notify_desc">Ring normally and post a warning notification</string>
+    <string name="action_allow_desc">Let the call ring, overriding block, silence and notify rules</string>
     <string name="enabled_label">Enabled</string>
     <string name="skip_notification_label">Skip notification</string>
     <string name="skip_notification_sublabel">Hide the missed-call notification when blocked</string>
@@ -108,4 +126,5 @@
     <string name="tester_flag_hidden">notif hidden</string>
     <string name="tester_flag_shown">notif shown</string>
     <string name="tester_silence">Match on %s → SILENCE (ringtone muted, call still logged and notified)</string>
+    <string name="tester_notify">Match on %s → NOTIFY (rings, warning notification posted)</string>
 </resources>

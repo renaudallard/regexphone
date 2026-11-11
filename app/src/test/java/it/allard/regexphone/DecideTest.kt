@@ -188,6 +188,43 @@ class DecideTest {
     }
 
     @Test
+    fun notifyRuleNotifiesMatchingNumber() {
+        val r = testRule(pattern = "^\\+1", action = RuleAction.NOTIFY)
+        val d = FilterCallScreeningService.decide("+15551234567", listOf(r))
+        assertTrue(d is Decision.Notify)
+        assertEquals(r, (d as Decision.Notify).rule)
+    }
+
+    @Test
+    fun silenceBeatsNotify() {
+        val rules = listOf(
+            testRule(id = 1, pattern = "^\\+1", action = RuleAction.NOTIFY),
+            testRule(id = 2, pattern = "^\\+155", action = RuleAction.SILENCE),
+        )
+        val d = FilterCallScreeningService.decide("+15551234567", rules)
+        assertTrue(d is Decision.Silence)
+        assertEquals(2L, (d as Decision.Silence).rule.id)
+    }
+
+    @Test
+    fun blockBeatsNotify() {
+        val rules = listOf(
+            testRule(id = 1, pattern = "^\\+1", action = RuleAction.NOTIFY),
+            testRule(id = 2, pattern = "^\\+155", action = RuleAction.BLOCK),
+        )
+        assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Block)
+    }
+
+    @Test
+    fun allowBeatsNotify() {
+        val rules = listOf(
+            testRule(id = 1, pattern = "^\\+1", action = RuleAction.NOTIFY),
+            testRule(id = 2, pattern = "^\\+155", action = RuleAction.ALLOW),
+        )
+        assertTrue(FilterCallScreeningService.decide("+15551234567", rules) is Decision.Allow)
+    }
+
+    @Test
     fun exhaustedAllowBudgetStillBlocks() {
         // A starved ALLOW pass must never swallow a matching BLOCK rule: the
         // call the user blocked still gets blocked. A zero ALLOW budget makes
@@ -222,6 +259,15 @@ class DecideTest {
         // The SILENCE pass draws on the same total budget; with it spent, a
         // matching silence rule cannot fire either.
         val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.SILENCE))
+        val d = FilterCallScreeningService.decide(
+            listOf("+15551234567"), rules, totalBudgetMs = 0L,
+        )
+        assertTrue(d is Decision.Allow)
+    }
+
+    @Test
+    fun exhaustedBudgetDoesNotNotify() {
+        val rules = listOf(testRule(pattern = "^\\+1", action = RuleAction.NOTIFY))
         val d = FilterCallScreeningService.decide(
             listOf("+15551234567"), rules, totalBudgetMs = 0L,
         )

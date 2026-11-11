@@ -31,7 +31,7 @@ import kotlinx.serialization.Serializable
 import java.util.regex.Pattern
 
 @Serializable
-enum class RuleAction { BLOCK, SILENCE, ALLOW }
+enum class RuleAction { BLOCK, SILENCE, NOTIFY, ALLOW }
 
 @Serializable
 data class Rule(

@@ -1,6 +1,6 @@
 # Privacy Policy — RegexPhone
 
-**Effective date:** 11 June 2026
+**Effective date:** 11 November 2026
 
 RegexPhone is an Android app that screens incoming phone calls against rules
 you define. This policy explains what the app does and does not do with your
@@ -19,7 +19,12 @@ advertising, or third-party SDKs. Everything happens on your device.
 - **Incoming phone numbers.** When a call arrives, Android passes the caller's
   number to the app's call-screening service. RegexPhone matches that number
   against your rules in memory to decide whether to allow, reject, or silence
-  the call. The number is not stored, logged, or transmitted by the app.
+  the call, or to warn you about it. The number is not stored, logged, or
+  transmitted by the app.
+- **Warning notifications.** If you create a rule with the optional `NOTIFY`
+  action, a matching call posts a local notification showing the rule name and
+  the caller's number. It is handled by Android's notification system on your
+  device like any other notification and is never sent anywhere.
 
 ## Data the app does NOT collect or access
 
@@ -31,9 +36,15 @@ advertising, or third-party SDKs. Everything happens on your device.
 
 ## Permissions
 
-RegexPhone requests no Android runtime permissions. It works by becoming your
-device's call-screening app (the call-screening role), which you grant
-explicitly in the system dialog and can revoke at any time in Android settings.
+RegexPhone works by becoming your device's call-screening app (the
+call-screening role), which you grant explicitly in the system dialog and can
+revoke at any time in Android settings.
+
+The only runtime permission it can request is the notification permission
+(`POST_NOTIFICATIONS`), and only if you choose the `NOTIFY` action for a rule.
+The app warns you first and then lets Android ask. If you never use `NOTIFY`,
+no runtime permission is ever requested, and declining it only stops the
+warnings; every other action keeps working.
 
 ## Storage and backup
 

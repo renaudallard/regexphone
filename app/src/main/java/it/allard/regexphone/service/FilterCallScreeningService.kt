@@ -27,11 +27,15 @@
 
 package it.allard.regexphone.service
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
 import androidx.annotation.VisibleForTesting
+import it.allard.regexphone.R
 import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
@@ -65,10 +69,45 @@ class FilterCallScreeningService : CallScreeningService() {
                     setSkipNotification(decision.rule.skipNotification)
                 }
                 is Decision.Silence -> setSilenceCall(true)
+                is Decision.Notify -> Unit
             }
         }.build()
 
         respondToCall(details, response)
+        if (decision is Decision.Notify) postWarning(number, decision.rule)
+    }
+
+    // Posted only after the response so the call is never held up. Without
+    // the notification permission, or with notifications turned off, the
+    // call simply rings as an allowed one.
+    private fun postWarning(number: String, rule: Rule) {
+        val nm = getSystemService(NotificationManager::class.java) ?: return
+        if (!nm.areNotificationsEnabled()) return
+        // The call is already ringing, so a notification sound on top of the
+        // ringtone adds nothing. The user can still change it in settings.
+        val channel = NotificationChannel(
+            CHANNEL_WARNINGS,
+            getString(R.string.notify_channel_name),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = getString(R.string.notify_channel_description)
+            setSound(null, null)
+        }
+        nm.createNotificationChannel(channel)
+        val notification = Notification.Builder(this, CHANNEL_WARNINGS)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle(
+                getString(
+                    R.string.notify_title,
+                    number.ifEmpty { getString(R.string.notify_hidden_number) },
+                )
+            )
+            .setContentText(
+                if (rule.name.isBlank()) getString(R.string.notify_text_unnamed)
+                else getString(R.string.notify_text, rule.name)
+            )
+            .build()
+        nm.notify(WARNING_ID, notification)
     }
 
     sealed interface Decision {
@@ -76,18 +115,24 @@ class FilterCallScreeningService : CallScreeningService() {
         data class Allow(val rule: Rule? = null) : Decision
         data class Block(val rule: Rule) : Decision
         data class Silence(val rule: Rule) : Decision
+        data class Notify(val rule: Rule) : Decision
     }
 
     companion object {
+        private const val CHANNEL_WARNINGS = "call_warnings"
+        // One id for every warning: a new matching call replaces the previous
+        // warning instead of piling up, the call log keeps the history.
+        private const val WARNING_ID = 1
+
         // Stay well inside Telecom's ~5 second response deadline even when
         // several fresh patterns each exhaust their individual watchdog
         // timeout on the first call after process start.
         private const val TOTAL_BUDGET_MS = 3500L
         // Cap the ALLOW pass below the full budget so a heavy or slow ALLOW
-        // ruleset cannot drain the deadline and leave the BLOCK and SILENCE
-        // passes no time, which would let a call the user blocked ring
-        // through. A slow ALLOW rule cut short by this smaller cap at worst
-        // lets a later BLOCK override a whitelist, the safe direction.
+        // ruleset cannot drain the deadline and leave the later passes no
+        // time, which would let a call the user blocked ring through. A slow
+        // ALLOW rule cut short by this smaller cap at worst lets a later
+        // BLOCK override a whitelist, the safe direction.
         private const val ALLOW_BUDGET_MS = 2000L
 
         /**
@@ -151,6 +196,7 @@ class FilterCallScreeningService : CallScreeningService() {
             firstMatching(RuleAction.ALLOW, allowBudgetMs)?.let { return Decision.Allow(it) }
             firstMatching(RuleAction.BLOCK, totalBudgetMs)?.let { return Decision.Block(it) }
             firstMatching(RuleAction.SILENCE, totalBudgetMs)?.let { return Decision.Silence(it) }
+            firstMatching(RuleAction.NOTIFY, totalBudgetMs)?.let { return Decision.Notify(it) }
             return Decision.Allow()
         }
     }

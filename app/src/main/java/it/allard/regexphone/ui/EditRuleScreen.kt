@@ -27,15 +27,22 @@
 
 package it.allard.regexphone.ui
 
+import android.Manifest
+import android.os.Build
 import android.telephony.TelephonyManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -50,10 +57,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -126,6 +131,24 @@ fun EditRuleScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
+
+    // NOTIFY is the only action that needs a permission. Ask for it only
+    // when the user picks that action, after a warning, so every other rule
+    // keeps the app permission-free.
+    var notifyEnabled by rememberRefreshedOnResume { notificationsEnabled(ctx) }
+    var confirmNotify by rememberSaveable { mutableStateOf(false) }
+    val notifyPermission = rememberLauncherForActivityResult(RequestPermission()) {
+        notifyEnabled = notificationsEnabled(ctx)
+    }
+    val chooseAction = { value: RuleAction ->
+        if (value == RuleAction.NOTIFY && !notifyEnabled &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+        ) {
+            confirmNotify = true
+        } else {
+            action = value
+        }
+    }
 
     // The saved rule and the tester preview must stay identical, so build the
     // edited rule from the current fields in one place. Only the id differs.
@@ -232,17 +255,17 @@ fun EditRuleScreen(
 
             Text(stringResource(R.string.action_label), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(4.dp))
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                RuleAction.entries.forEachIndexed { index, value ->
-                    SegmentedButton(
+            Column(modifier = Modifier.selectableGroup()) {
+                RuleAction.entries.forEach { value ->
+                    ActionRow(
+                        action = value,
                         selected = action == value,
-                        onClick = { action = value },
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = RuleAction.entries.size,
-                        ),
-                    ) { Text(actionLabel(value)) }
+                        onClick = { chooseAction(value) },
+                    )
                 }
+            }
+            if (action == RuleAction.NOTIFY && !notifyEnabled) {
+                NotificationsOffNote()
             }
             Spacer(Modifier.height(16.dp))
 
@@ -341,6 +364,27 @@ fun EditRuleScreen(
         }
     }
 
+    if (confirmNotify) {
+        AlertDialog(
+            onDismissRequest = { confirmNotify = false },
+            title = { Text(stringResource(R.string.notify_permission_title)) },
+            text = { Text(stringResource(R.string.notify_permission_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmNotify = false
+                    action = RuleAction.NOTIFY
+                    // Only reachable from Android 13, see chooseAction.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }) { Text(stringResource(R.string.notify_permission_continue)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmNotify = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
     if (confirmDiscard) {
         AlertDialog(
             onDismissRequest = { confirmDiscard = false },
@@ -421,6 +465,39 @@ private fun testerVerdict(preview: TesterPreview?, editedId: Long): String {
             )
         is FilterCallScreeningService.Decision.Silence ->
             stringResource(R.string.tester_silence, byWhom(d.rule))
+        is FilterCallScreeningService.Decision.Notify ->
+            stringResource(R.string.tester_notify, byWhom(d.rule))
+    }
+}
+
+@Composable
+private fun ActionRow(action: RuleAction, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            // One selectable row so the label and description are announced
+            // with the radio state and the whole row is the tap target.
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .padding(vertical = 4.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(actionLabel(action), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(
+                    when (action) {
+                        RuleAction.BLOCK -> R.string.action_block_desc
+                        RuleAction.SILENCE -> R.string.action_silence_desc
+                        RuleAction.NOTIFY -> R.string.action_notify_desc
+                        RuleAction.ALLOW -> R.string.action_allow_desc
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

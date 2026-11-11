@@ -42,6 +42,7 @@ class RuleIOTest {
         val rules = listOf(
             testRule(1, "^\\+1", RuleAction.BLOCK),
             testRule(2, "^\\+33", RuleAction.ALLOW, skipNotification = false),
+            testRule(3, "^\\+44", RuleAction.NOTIFY),
         )
         val text = RuleIO.encode(rules)
         val decoded = RuleIO.decode(text).getOrThrow()
@@ -49,6 +50,7 @@ class RuleIOTest {
         assertEquals(rules[0].pattern, decoded[0].pattern)
         assertEquals(rules[1].action, decoded[1].action)
         assertEquals(false, decoded[1].skipNotification)
+        assertEquals(RuleAction.NOTIFY, decoded[2].action)
     }
 
     @Test
