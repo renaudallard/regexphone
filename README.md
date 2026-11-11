@@ -110,7 +110,7 @@ gradle wrapper --gradle-version 9.8.0
 ./gradlew assembleDebug
 ```
 
-The APK lands at `app/build/outputs/apk/debug/regexphone-X.Y.Z.apk` (the build renames every variant after the version).
+The APK lands at `app/build/outputs/apk/debug/regexphone-X.Y.Z.apk` (the build renames every variant after the version). The debug build has its own application id, `it.allard.regexphone.debug`, and shows as "RegexPhone debug", so it installs next to a release without touching its rules. Only one app can hold the call-screening role, so give it to the debug build while testing and back afterwards.
 
 ### Release builds
 
