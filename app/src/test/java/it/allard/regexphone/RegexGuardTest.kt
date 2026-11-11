@@ -34,6 +34,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
 class RegexGuardTest {
@@ -77,5 +79,55 @@ class RegexGuardTest {
         // blocking real calls, while the tester rejects it from now on.
         assertTrue(RegexGuard.isPoisoned(evil, RegexGuard.Scope.TESTER))
         assertFalse(RegexGuard.isPoisoned(evil, RegexGuard.Scope.SCREENING))
+    }
+
+    // Holds guard slots with matches that block on a latch, so a test fills
+    // and frees them deterministically and leaves no runaway behind.
+    private class Stuck(private val prefix: String, private val scope: RegexGuard.Scope) {
+        private val gate = CountDownLatch(1)
+        private var count = 0
+
+        /** Starts one match that times out and stays stuck; false when refused outright. */
+        fun add(): Boolean {
+            val started = CountDownLatch(1)
+            RegexGuard.run("$prefix-${count++}", 20L, scope) {
+                started.countDown()
+                gate.await()
+                false
+            }
+            // A refused match never starts its body; a timed-out one has a
+            // thread that reaches it shortly even on a loaded machine.
+            return started.await(2, TimeUnit.SECONDS)
+        }
+
+        fun release() = gate.countDown()
+    }
+
+    private fun healthy(scope: RegexGuard.Scope): Boolean? =
+        RegexGuard.find(Pattern.compile("^\\+1"), "+15551234567", scope = scope)
+
+    // The workers release their slots a moment after the latch opens.
+    private fun awaitHealthy(scope: RegexGuard.Scope) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (healthy(scope) != true) {
+            assertTrue("guard did not recover", System.nanoTime() < deadline)
+            Thread.sleep(10)
+        }
+    }
+
+    @Test
+    fun testerRunawaysCannotStarveScreening() {
+        val stuck = Stuck("tester-starve", RegexGuard.Scope.TESTER)
+        try {
+            // Fill every tester slot: once a match is refused outright, the
+            // tester has nothing left to start one with.
+            var guard = 0
+            while (stuck.add()) assertTrue(guard++ < 100)
+            assertNull(healthy(RegexGuard.Scope.TESTER))
+            assertEquals(true, healthy(RegexGuard.Scope.SCREENING))
+        } finally {
+            stuck.release()
+            awaitHealthy(RegexGuard.Scope.TESTER)
+        }
     }
 }
