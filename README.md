@@ -18,6 +18,7 @@
   <img src="https://img.shields.io/badge/build-Gradle%209.8-02303A?logo=gradle&logoColor=white" alt="Gradle 9.8" />
   <img src="https://img.shields.io/badge/license-BSD--2--Clause-blue" alt="BSD 2-Clause license" />
   <img src="https://img.shields.io/github/downloads/renaudallard/regexphone/total?logo=github&logoColor=white&label=downloads&cb=2" alt="GitHub downloads" />
+  <a href="https://github.com/renaudallard/regexphone/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/renaudallard/regexphone/build.yml?logo=github&logoColor=white&label=build" alt="Build" /></a>
 </p>
 
 ---
@@ -172,6 +173,16 @@ Google Play distributes an Android App Bundle (`.aab`), not an APK. Build it wit
 ```
 
 The bundle lands at `app/build/outputs/bundle/release/app-release.aab`, signed with the same `REGEXPHONE_*` credentials as the APK. The `outputFileName` rename only applies to APK outputs, so the bundle keeps its default name. Under Play App Signing this keystore acts as the upload key; Google manages the final distribution signing key.
+
+### Continuous integration
+
+The workflow in `.github/workflows/build.yml` runs the unit tests, lint and the debug build on every push and pull request, then builds the release APK and app bundle without the key and keeps them as artifacts. For pushes to `main` of this repository only, a job of its own, on another machine than the build and what it ran, signs the APK with `apksigner` and the bundle for Google Play with `jarsigner`, keeping them as the `regexphone-release` and `regexphone-bundle` artifacts. Those of forks, other branches and pull requests stay unsigned.
+
+The signing job reads the key from the repository secrets `REGEXPHONE_KEYSTORE` (base64 PKCS12 keystore), `REGEXPHONE_KEYSTORE_PASSWORD`, `REGEXPHONE_KEY_ALIAS` and `REGEXPHONE_KEY_PASSWORD`, and stops when the APK or the bundle carries another certificate than the one the workflow names. Android only installs an update signed with the same key, so keep a copy of the keystore.
+
+### Releases
+
+Bumping `versionName` in `app/build.gradle.kts` and pushing to `main` publishes a release tagged `v<versionName>` with the signed APK. Pushes whose version already has a release publish nothing.
 
 ## Project layout
 

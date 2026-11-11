@@ -1,0 +1,172 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing pushes with git, the token would stay in .git/config for the build to read.
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Install SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Test and build
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+
+      - name: Build release
+        run: ./gradlew --no-daemon :app:assembleRelease :app:bundleRelease
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: regexphone
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+
+      # Apart, as a shared path would move the APKs the sign job takes.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: regexphone-bundle-unsigned
+          path: app/build/outputs/bundle/release/*.aab
+
+  # Sign the release on a machine of its own: the build ran the code of
+  # Gradle, its plugins and dependencies, some of which may still run
+  # there, where the key must never be. Only pushes to main of this
+  # repository are signed, other branches would make APKs that install
+  # over the release of the same version.
+  sign:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'renaudallard/regexphone'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install apksigner
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: regexphone
+          path: apk
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: regexphone-bundle-unsigned
+          path: bundle
+
+      # The build names every APK after its version, so the release
+      # directory holds exactly one.
+      - name: Sign
+        env:
+          REGEXPHONE_KEYSTORE: ${{ secrets.REGEXPHONE_KEYSTORE }}
+          REGEXPHONE_KEYSTORE_PASSWORD: ${{ secrets.REGEXPHONE_KEYSTORE_PASSWORD }}
+          REGEXPHONE_KEY_ALIAS: ${{ secrets.REGEXPHONE_KEY_ALIAS }}
+          REGEXPHONE_KEY_PASSWORD: ${{ secrets.REGEXPHONE_KEY_PASSWORD }}
+        run: |
+          ks="$RUNNER_TEMP/release.jks"
+          trap 'rm -f "$ks"' EXIT
+          echo "$REGEXPHONE_KEYSTORE" | base64 -d > "$ks"
+          set -- apk/release/regexphone-*.apk
+          test $# -eq 1
+          test -f "$1"
+          mkdir signed
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign --ks "$ks" \
+              --ks-pass env:REGEXPHONE_KEYSTORE_PASSWORD --ks-key-alias "$REGEXPHONE_KEY_ALIAS" \
+              --key-pass env:REGEXPHONE_KEY_PASSWORD --v1-signing-enabled false \
+              --v2-signing-enabled true --v3-signing-enabled false \
+              --v4-signing-enabled false --alignment-preserved true \
+              --out "signed/$(basename "$1")" "$1"
+          cp bundle/app-release.aab signed/app-release.aab
+          jarsigner -keystore "$ks" -storepass:env REGEXPHONE_KEYSTORE_PASSWORD \
+              -keypass:env REGEXPHONE_KEY_PASSWORD -sigalg SHA256withRSA -digestalg SHA-256 \
+              signed/app-release.aab "$REGEXPHONE_KEY_ALIAS"
+
+      # Another key in the secrets would publish a release that updates
+      # no install.
+      - name: Check the signer
+        run: |
+          cert=d23c732ba764aa3c775d123ed176055af140dfb6bad7793c5d8b4a4d5cb13713
+          apk=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs signed/regexphone-*.apk |
+              sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p')
+          aab=$(keytool -printcert -jarfile signed/app-release.aab |
+              sed -n 's/^[[:space:]]*SHA256: //p' | tr -d : | tr A-F a-f)
+          test "$apk" = "$cert" && test "$aab" = "$cert" ||
+              { echo "signed with $apk and $aab, not $cert"; exit 1; }
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: regexphone-release
+          path: signed/regexphone-*.apk
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: regexphone-bundle
+          path: signed/app-release.aab
+
+  # Publish the signed APK when versionName has no release yet.
+  # Forks have no signing key, and two pushes of a new version must not race.
+  release:
+    needs: sign
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'renaudallard/regexphone'
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing pushes with git, the token would stay in .git/config for the build to read.
+          persist-credentials: false
+
+      - name: Check version
+        id: version
+        run: |
+          version=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          test -n "$version"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" > /dev/null 2>&1; then
+              echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+              echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: steps.version.outputs.new == 'true'
+        with:
+          name: regexphone-release
+          path: signed
+
+      - name: Publish release
+        if: steps.version.outputs.new == 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" signed/regexphone-*.apk --target "$GITHUB_SHA" \
+              --title "$TAG" --generate-notes
