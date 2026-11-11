@@ -53,6 +53,10 @@ import java.util.regex.Pattern
  * runaways keep their live slot, and when those are all held nothing matches
  * any more until a runaway ends.
  *
+ * A pattern is never started again while an earlier run of it is still
+ * going past its deadline, so each distinct pattern holds one thread at most,
+ * whether or not it got blacklisted.
+ *
  * Each [Scope] has its own slots, so runaways started from the live tester
  * can never take a slot that call screening needs.
  */
@@ -67,6 +71,8 @@ object RegexGuard {
     private const val STATE_LIVE = 0
     private const val STATE_ABANDONED = 1
     private const val STATE_DONE = 2
+    // Timed out with the abandoned cap full: still holding its live slot.
+    private const val STATE_HELD = 3
 
     /** Which slots and which blacklist a match uses. */
     enum class Scope { SCREENING, TESTER }
@@ -81,6 +87,13 @@ object RegexGuard {
         // pile up under a crafted-rules attack.
         val abandoned = AtomicInteger(0)
         val poisoned: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        // Patterns with a run still going past its deadline, with how many.
+        // Bounded by the two caps above.
+        val stuck = ConcurrentHashMap<String, Int>()
+
+        fun unstick(key: String) {
+            stuck.computeIfPresent(key) { _, runs -> if (runs <= 1) null else runs - 1 }
+        }
     }
 
     private val screening = Pool(maxLive = 6, maxAbandoned = 16)
@@ -116,6 +129,10 @@ object RegexGuard {
         if (key in screening.poisoned) return null
         val pool = pool(scope)
         if (scope == Scope.TESTER && key in pool.poisoned) return null
+        // A run cut short by the caller's budget is not blacklisted, and the
+        // blacklist itself is capped, so without this the same pattern would
+        // leave one more runaway behind on every call.
+        if (pool.stuck.containsKey(key)) return null
         if (!tryReserve(pool.live, pool.maxLive)) return null
         val state = AtomicInteger(STATE_LIVE)
         val task = FutureTask {
@@ -124,7 +141,14 @@ object RegexGuard {
             } finally {
                 when {
                     state.compareAndSet(STATE_LIVE, STATE_DONE) -> pool.live.decrementAndGet()
-                    state.compareAndSet(STATE_ABANDONED, STATE_DONE) -> pool.abandoned.decrementAndGet()
+                    state.compareAndSet(STATE_ABANDONED, STATE_DONE) -> {
+                        pool.abandoned.decrementAndGet()
+                        pool.unstick(key)
+                    }
+                    state.compareAndSet(STATE_HELD, STATE_DONE) -> {
+                        pool.live.decrementAndGet()
+                        pool.unstick(key)
+                    }
                 }
             }
         }
@@ -142,7 +166,14 @@ object RegexGuard {
             // abandon it so it stops holding a live slot while it burns its
             // core in the background.
             thread.priority = Thread.MIN_PRIORITY
-            abandon(pool, state)
+            // Record the run as stuck before the state leaves LIVE: the
+            // worker only drops the record from ABANDONED or HELD, so it can
+            // never miss one written after it finished.
+            pool.stuck.merge(key, 1, Int::plus)
+            if (!abandon(pool, state) && !state.compareAndSet(STATE_LIVE, STATE_HELD)) {
+                // The worker finished just as the deadline passed.
+                pool.unstick(key)
+            }
             // Only blacklist a run that had its full time allowance; one cut
             // short by the caller's remaining budget proves nothing. When the
             // set is full, drop the new entry rather than wiping known ones;
@@ -170,16 +201,18 @@ object RegexGuard {
     }
 
     // Move a timed-out match from its live slot to an abandoned one so a fresh
-    // match can take the freed live slot. A no-op if the worker already
-    // finished and released the slot, or if the background-burner cap is full,
-    // in which case the slot stays held until the worker ends on its own.
-    private fun abandon(pool: Pool, state: AtomicInteger) {
-        if (!tryReserve(pool.abandoned, pool.maxAbandoned)) return
+    // match can take the freed live slot, and return whether it moved. It
+    // does not when the worker already finished and released the slot, or
+    // when the background-burner cap is full, in which case the slot stays
+    // held until the worker ends on its own.
+    private fun abandon(pool: Pool, state: AtomicInteger): Boolean {
+        if (!tryReserve(pool.abandoned, pool.maxAbandoned)) return false
         if (state.compareAndSet(STATE_LIVE, STATE_ABANDONED)) {
             pool.live.decrementAndGet()
-        } else {
-            pool.abandoned.decrementAndGet()
+            return true
         }
+        pool.abandoned.decrementAndGet()
+        return false
     }
 
     // Reserve a slot before starting work so the cap is an invariant, not a

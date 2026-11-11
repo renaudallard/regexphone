@@ -116,6 +116,28 @@ class RegexGuardTest {
     }
 
     @Test
+    fun stuckPatternIsNotStartedAgain() {
+        val scope = RegexGuard.Scope.SCREENING
+        val gate = CountDownLatch(1)
+        try {
+            // Cut short well under the full allowance, so the blacklist does
+            // not come into play.
+            assertNull(RegexGuard.run("stuck-again", 20L, scope) { gate.await(); false })
+            var ran = false
+            assertNull(RegexGuard.run("stuck-again", RegexGuard.DEFAULT_TIMEOUT_MS, scope) { ran = true; true })
+            assertFalse(ran)
+        } finally {
+            gate.countDown()
+        }
+        // Once the stuck run ends the pattern is admitted again.
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (RegexGuard.run("stuck-again", RegexGuard.DEFAULT_TIMEOUT_MS, scope) { true } != true) {
+            assertTrue("pattern stayed refused", System.nanoTime() < deadline)
+            Thread.sleep(10)
+        }
+    }
+
+    @Test
     fun testerRunawaysCannotStarveScreening() {
         val stuck = Stuck("tester-starve", RegexGuard.Scope.TESTER)
         try {
