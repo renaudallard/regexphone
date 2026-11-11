@@ -138,6 +138,28 @@ class RegexGuardTest {
     }
 
     @Test
+    fun saturatedOnceTheAbandonedSlotsAreFull() {
+        val stuck = Stuck("saturate", RegexGuard.Scope.SCREENING)
+        try {
+            var guard = 0
+            while (!RegexGuard.saturated()) {
+                assertTrue(stuck.add())
+                assertTrue(guard++ < 100)
+            }
+            // Saturation is reported while screening still works, so there
+            // is time to act before the match slots run out as well.
+            assertEquals(true, healthy(RegexGuard.Scope.SCREENING))
+        } finally {
+            stuck.release()
+        }
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+        while (RegexGuard.saturated()) {
+            assertTrue("guard stayed saturated", System.nanoTime() < deadline)
+            Thread.sleep(10)
+        }
+    }
+
+    @Test
     fun testerRunawaysCannotStarveScreening() {
         val stuck = Stuck("tester-starve", RegexGuard.Scope.TESTER)
         try {

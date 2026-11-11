@@ -37,6 +37,10 @@
     <string name="storage_warning_title">Stored rules were damaged</string>
     <string name="storage_warning_body">Some rules could not be read. Everything recoverable is shown below. The unreadable data is kept in app storage until you dismiss this warning. Re-import an exported file if rules are missing.</string>
 
+    <!-- Overload warning card -->
+    <string name="overload_title">Call screening is overloaded</string>
+    <string name="overload_body">Too many rules took too long to evaluate on recent calls, so calls may ring through unscreened. Disable or delete the slow rules.</string>
+
     <!-- Notifications -->
     <string name="notify_off_body">Notifications are off for RegexPhone, so NOTIFY rules cannot warn you.</string>
     <string name="notify_open_settings">Open settings</string>

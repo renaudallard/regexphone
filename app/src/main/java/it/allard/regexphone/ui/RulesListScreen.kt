@@ -94,6 +94,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.allard.regexphone.R
+import it.allard.regexphone.data.RegexGuard
 import it.allard.regexphone.data.Rule
 import it.allard.regexphone.data.RuleAction
 import it.allard.regexphone.data.RuleIO
@@ -256,6 +257,8 @@ fun RulesListScreen(
             if (storageWarning) {
                 StorageWarningCard(onDismiss = { RuleRepository.dismissStorageWarning() })
             }
+            val overloaded by rememberRefreshedOnResume { RegexGuard.saturated() }
+            if (overloaded) OverloadCard()
             // Imported rules or a later revoke can leave NOTIFY rules without
             // the notification permission; say so instead of failing quietly.
             val notifyEnabled by rememberRefreshedOnResume { notificationsEnabled(ctx) }
@@ -446,7 +449,7 @@ private fun RoleCard() {
 }
 
 @Composable
-private fun StorageWarningCard(onDismiss: () -> Unit) {
+private fun WarningCard(content: @Composable () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -456,16 +459,28 @@ private fun StorageWarningCard(onDismiss: () -> Unit) {
             containerColor = MaterialTheme.colorScheme.errorContainer,
         ),
     ) {
+        content()
+    }
+}
+
+@Composable
+private fun WarningText(title: Int, body: Int) {
+    Text(
+        text = stringResource(title),
+        style = MaterialTheme.typography.titleMedium,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = stringResource(body),
+        style = MaterialTheme.typography.bodyMedium,
+    )
+}
+
+@Composable
+private fun StorageWarningCard(onDismiss: () -> Unit) {
+    WarningCard {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.storage_warning_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.storage_warning_body),
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            WarningText(R.string.storage_warning_title, R.string.storage_warning_body)
             Spacer(Modifier.height(4.dp))
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) }
         }
@@ -473,16 +488,17 @@ private fun StorageWarningCard(onDismiss: () -> Unit) {
 }
 
 @Composable
+private fun OverloadCard() {
+    WarningCard {
+        Column(modifier = Modifier.padding(16.dp)) {
+            WarningText(R.string.overload_title, R.string.overload_body)
+        }
+    }
+}
+
+@Composable
 private fun NotificationsOffCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-        ),
-    ) {
+    WarningCard {
         NotificationsOffNote(modifier = Modifier.padding(16.dp))
     }
 }

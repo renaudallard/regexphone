@@ -190,6 +190,13 @@ object RegexGuard {
     }
 
     /**
+     * Whether call screening has used up its abandoned slots. From here on
+     * every further runaway keeps a match slot, and six of those leave no
+     * rule matching, so callers should treat this as the point to act.
+     */
+    fun saturated(): Boolean = screening.abandoned.get() >= screening.maxAbandoned
+
+    /**
      * Whether [pattern] is currently blacklisted for [scope], mirroring the
      * fast-fail gate in [find]. Lets a test assert the blacklist by state
      * rather than by timing how fast a rejected match returns.
